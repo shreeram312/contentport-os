@@ -1238,6 +1238,8 @@ export function ImageTool({
                             'bg-gradient-to-br from-blue-300 to-cyan-400',
                             'bg-gradient-to-br from-yellow-300 to-orange-400',
                             'bg-gradient-to-br from-indigo-300 to-purple-400',
+                            'bg-gradient-to-br from-stone-900 to-stone-950',
+                            'bg-gradient-to-br from-stone-50 to-stone-100',
                           ].map((theme) => (
                             <div
                               key={theme}
