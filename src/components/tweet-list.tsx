@@ -241,7 +241,7 @@ export default function TweetList({
   }
 
   return (
-    <div className="relative z-10">
+    <div className="relative z-10 p-2">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-stone-800">{title}</h1>
