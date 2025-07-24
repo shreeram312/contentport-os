@@ -68,7 +68,7 @@ export const OnboardingModal = ({
   const [isOpen, setIsOpen] = useState<boolean>(true)
   const { fire } = useConfetti()
   const [exampleDocsCreated, setExampleDocsCreated] = useState(false)
-  const [tweetGoal, setTweetGoal] = useState('')
+  const [frequency, setFrequency] = useState('')
   const [mainFocus, setMainFocus] = useState('')
 
   const { mutate: createOAuthLink, isPending: isCreatingOAuthLink } = useMutation({
@@ -83,6 +83,20 @@ export const OnboardingModal = ({
     },
     onSuccess: ({ url }) => {
       window.location.href = url
+    },
+  })
+
+  const { mutate: updateOnboardingMetaData } = useMutation({
+    mutationFn: async () => {
+      let userFrequency = 0
+      if (frequency === '1_day') userFrequency = 1
+      if (frequency === '2_day') userFrequency = 2
+      if (frequency === '3_day') userFrequency = 3
+
+      await client.auth_router.updateOnboardingMetaData.$post({
+        userFrequency,
+        userGoals: [mainFocus],
+      })
     },
   })
 
@@ -120,7 +134,10 @@ export const OnboardingModal = ({
   const handleNext = async () => {
     if (!swiperRef) return
     const currentSlide = swiperRef.activeIndex
-    if (currentSlide === SLIDES.GOAL_SLIDE && !tweetGoal) return
+    if (currentSlide === SLIDES.GOAL_SLIDE) {
+      updateOnboardingMetaData()
+    }
+    if (currentSlide === SLIDES.GOAL_SLIDE && !frequency) return
     if (currentSlide === SLIDES.FOCUS_SLIDE && !mainFocus) return
     const fields = STEPS[currentSlide]?.fields ?? []
     const isValid = await trigger(fields, { shouldFocus: true })
@@ -161,7 +178,7 @@ export const OnboardingModal = ({
   // Determine if the button should be disabled
   const isButtonDisabled = () => {
     // if (isPending) return true
-    if (swiperRef?.activeIndex === SLIDES.GOAL_SLIDE && !tweetGoal) return true
+    if (swiperRef?.activeIndex === SLIDES.GOAL_SLIDE && !frequency) return true
     if (swiperRef?.activeIndex === SLIDES.FOCUS_SLIDE && !mainFocus) return true
     if (swiperRef?.activeIndex === SLIDES.HANDLE_SLIDE && !watch('handle').trim())
       return true
@@ -301,8 +318,8 @@ export const OnboardingModal = ({
                     <DuolingoRadioGroup
                       name="tweet-goal"
                       options={TWEET_GOALS}
-                      value={tweetGoal}
-                      onChange={setTweetGoal}
+                      value={frequency}
+                      onChange={setFrequency}
                     />
                   </div>
                 </div>

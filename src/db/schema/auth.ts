@@ -13,6 +13,8 @@ export const user = pgTable('user', {
     .default('free'),
   stripeId: text('stripe_id').unique(),
   hadTrial: boolean('had_trial').default(false),
+  goals: json('goals').$type<string[]>().default([]),
+  frequency: integer('frequency'),
 })
 
 export const session = pgTable('session', {
