@@ -17,6 +17,8 @@ const api = j
         'http://localhost:3000',
         'https://contentport.io',
         'https://www.contentport.io',
+        'https://contentport.vercel.app',
+        'https://www.contentport.vercel.app',
       ],
       allowHeaders: ['x-is-superjson', 'Content-Type', 'content-type'],
       exposeHeaders: ['x-is-superjson', 'Content-Type', 'content-type'],
