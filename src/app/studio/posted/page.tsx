@@ -10,7 +10,7 @@ export default function PostedTweetsPage() {
   return (
     <div className="space-y-6 relative z-10 max-w-3xl mx-auto w-full">
       <div className="flex items-center gap-3">
-        <AccountAvatar className="size-10 mb-1" />
+        <AccountAvatar className="size-10 mb-1 mx-2" />
         <div className="flex flex-col">
           <h1 className="text-2xl font-semibold text-stone-900">Posted Tweets</h1>
           <p className="text-sm text-stone-600">
