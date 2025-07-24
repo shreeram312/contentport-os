@@ -500,6 +500,17 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       })
 
       queryClient.invalidateQueries({ queryKey: ['scheduled-and-published-tweets'] })
+
+      shadowEditor.update(
+        () => {
+          const root = $getRoot()
+          root.clear()
+          root.append($createParagraphNode())
+        },
+        { tag: 'force-sync' }
+      )
+
+      setMediaFiles([])
     },
     onError: (error: HTTPException) => {
       if (error.status === 402) {
@@ -736,6 +747,17 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         timeText = `${formattedTime} ${formattedDate}`
       }
 
+      setMediaFiles([])
+
+      shadowEditor.update(
+        () => {
+          const root = $getRoot()
+          root.clear()
+          root.append($createParagraphNode())
+        },
+        { tag: 'force-sync' }
+      )
+
       toast.success(
         <div className="flex gap-1.5 items-center">
           <p>Queued {isToday(scheduledDate) ? timeText : `for ${timeText}`}!</p>
@@ -776,13 +798,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       }))
 
     enqueueTweet({ content, media })
-
-    // await scheduleTweetMutation.mutateAsync({
-    //   content,
-    //   scheduledUnix: nextSlot.scheduledUnix,
-    //   media,
-    //   showToast: false,
-    // })
   }
 
   const handleScheduleTweet = (date: Date, time: string) => {
