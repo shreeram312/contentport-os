@@ -1,4 +1,4 @@
-import { S3Client } from "@aws-sdk/client-s3"
+import { S3Client } from '@aws-sdk/client-s3'
 
 export const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -28,11 +28,11 @@ export const ALLOWED_IMAGE_TYPES = [
 ] as const
 
 export const FILE_TYPE_MAP = {
-    'application/pdf': 'pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-    'text/plain': 'txt',
-    'image/jpeg': 'image',
-    'image/png': 'image',
-    'image/webp': 'image',
-    'image/svg+xml': 'image',
-  } as const
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'text/plain': 'txt',
+  'image/jpeg': 'image',
+  'image/png': 'image',
+  'image/webp': 'image',
+  'image/svg+xml': 'image',
+} as const

@@ -20,6 +20,7 @@ interface AttachmentManager {
   attachments: (Attachment | LocalAttachment)[]
   addKnowledgeAttachment: (doc: SelectedKnowledgeDocument) => void
   addChatAttachment: (file: File) => void
+  addVideoAttachment: (s3Key: string, fileName?: string) => void
   removeAttachment: ({ id }: { id: string }) => void
   hasUploading: boolean
 }
@@ -157,6 +158,20 @@ export const AttachmentsProvider = ({ children }: PropsWithChildren) => {
 
   const addChatAttachment = async (file: File) => uploadAttachment({ file })
 
+  const addVideoAttachment = (s3Key: string, fileName?: string) => {
+    setAttachments((prev) => {
+      const newAttachment: Attachment = {
+        id: s3Key,
+        type: 'video',
+        fileKey: s3Key,
+        title: fileName || s3Key,
+        variant: 'chat',
+      }
+
+      return [...prev, newAttachment]
+    })
+  }
+
   const removeAttachment = async ({ id }: { id: string }) => {
     setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
   }
@@ -167,6 +182,7 @@ export const AttachmentsProvider = ({ children }: PropsWithChildren) => {
         attachments,
         addKnowledgeAttachment,
         addChatAttachment,
+        addVideoAttachment,
         removeAttachment,
         hasUploading,
       }}

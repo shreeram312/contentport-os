@@ -9,6 +9,10 @@
 # testing
 /coverage
 
+# jobs
+jobs/node_modules
+jobs/node_modules/.bin
+
 # next.js
 /.next/
 /out/

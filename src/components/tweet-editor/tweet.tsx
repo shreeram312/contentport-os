@@ -12,6 +12,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
 
 import { AccountAvatar, AccountHandle, AccountName } from '@/hooks/account-ctx'
+import { useAttachments } from '@/hooks/use-attachments'
 import { client } from '@/lib/client'
 import MentionsPlugin from '@/lib/lexical-plugins/mention-plugin'
 import { MentionTooltipPlugin } from '@/lib/lexical-plugins/mention-tooltip-plugin'
@@ -27,11 +28,12 @@ import {
   Clock,
   Download,
   ImagePlus,
+  MessageSquarePlus,
   Pen,
   Save,
   Trash2,
   Upload,
-  X
+  X,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -78,6 +80,7 @@ const MAX_MEDIA_COUNT = 4
 
 export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const { mediaFiles, setMediaFiles, setCurrentTweet, shadowEditor } = useTweets()
+  const { addVideoAttachment, attachments } = useAttachments()
 
   const { fire } = useConfetti()
   const router = useRouter()
@@ -86,6 +89,28 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
+
+  // Add video to chat attachments
+  const handleAddVideoToChat = (mediaFile: MediaFile) => {
+    if (mediaFile.type !== 'video' || !mediaFile.s3Key) {
+      toast.error('Invalid video file')
+      return
+    }
+
+    // Check if this video is already attached
+    const existingAttachment = attachments.find(
+      (att) => att.type === 'video' && att.fileKey === mediaFile.s3Key
+    )
+
+    if (existingAttachment) {
+      toast.error('Video already added to chat')
+      return
+    }
+
+    const fileName = `Video transcript (${mediaFile.file?.name || 'uploaded video'})`
+    addVideoAttachment(mediaFile.s3Key, fileName)
+    toast.success('Video added to chat!')
+  }
 
   // useEffect(() => {
   //   const handleKeyDown = (e: KeyboardEvent) => {
@@ -199,11 +224,23 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       )}
 
       <div className="absolute top-2 right-2 flex gap-1">
+        {mediaFile.type === 'video' && (
+          <DuolingoButton
+            disabled={!Boolean(mediaFile.uploaded) || !Boolean(mediaFile.s3Key)}
+            size="icon"
+            variant="secondary"
+            onClick={() => handleAddVideoToChat(mediaFile)}
+            className="size-11"
+            title="Add video transcript to chat"
+          >
+            <MessageSquarePlus className="size-4" />
+          </DuolingoButton>
+        )}
         <DuolingoButton
           size="icon"
           variant="secondary"
           onClick={() => downloadMediaFile(mediaFile)}
-          className='size-11'
+          className="size-11"
         >
           <Download className="size-4" />
         </DuolingoButton>
@@ -240,7 +277,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           fileName: file.name,
           fileType: file.type,
         },
-        { init: { signal: controller.signal } },
+        { init: { signal: controller.signal } }
       )
 
       const { url, fields, fileKey } = await res.json()
@@ -287,7 +324,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           s3Key,
           mediaType,
         },
-        { init: { signal: controller.signal } },
+        { init: { signal: controller.signal } }
       )
 
       return await res.json()
@@ -331,7 +368,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           >
             See tweet
           </Link>
-        </div>,
+        </div>
       )
 
       posthog.capture('tweet_posted', {
@@ -355,7 +392,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           root.clear()
           root.append($createParagraphNode())
         },
-        { tag: 'force-sync' },
+        { tag: 'force-sync' }
       )
     },
     onError: (error) => {
@@ -474,7 +511,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   })
 
   const validateFile = (
-    file: File,
+    file: File
   ): { valid: boolean; type?: 'image' | 'gif' | 'video'; error?: string } => {
     // Check file type
     let mediaType: 'image' | 'gif' | 'video'
@@ -572,8 +609,8 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                   media_key: twitterResult.media_key,
                   s3Key: s3Result.fileKey,
                 }
-              : mf,
-          ),
+              : mf
+          )
         )
 
         posthog.capture('tweet_media_uploaded', {
@@ -587,8 +624,8 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       } catch (error) {
         setMediaFiles((prev) =>
           prev.map((mf) =>
-            mf.url === url ? { ...mf, uploading: false, error: 'Upload failed' } : mf,
-          ),
+            mf.url === url ? { ...mf, uploading: false, error: 'Upload failed' } : mf
+          )
         )
       }
     }
@@ -708,7 +745,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           >
             See queue
           </Link>
-        </div>,
+        </div>
       )
     },
   })
@@ -867,7 +904,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
 
     if (editTweetData?.tweet?.scheduledFor) {
       scheduledUnix = Math.floor(
-        new Date(editTweetData.tweet.scheduledFor).getTime() / 1000,
+        new Date(editTweetData.tweet.scheduledFor).getTime() / 1000
       )
     }
 
@@ -910,7 +947,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         root.clear()
         root.append($createParagraphNode())
       },
-      { tag: 'force-sync' },
+      { tag: 'force-sync' }
     )
 
     setMediaFiles([])
@@ -959,7 +996,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           <div
             className={cn(
               'relative bg-white p-6 rounded-2xl w-full border border-gray-900 border-opacity-10 bg-clip-padding shadow transition-colors',
-              isDragging && 'border-indigo-600 border-dashed',
+              isDragging && 'border-indigo-600 border-dashed'
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -980,7 +1017,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                       <ContentEditable
                         spellCheck={false}
                         className={cn(
-                          'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none',
+                          'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none'
                         )}
                       />
                     }
@@ -1118,7 +1155,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                 <div className="mt-3 pt-3 border-t border-stone-200 flex items-center justify-between">
                   <div
                     className={cn(
-                      'flex items-center gap-1.5 bg-stone-100 p-1.5 rounded-lg',
+                      'flex items-center gap-1.5 bg-stone-100 p-1.5 rounded-lg'
                     )}
                   >
                     <TooltipProvider>
@@ -1131,7 +1168,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                             type="button"
                             onClick={() => {
                               const input = document.getElementById(
-                                'media-upload',
+                                'media-upload'
                               ) as HTMLInputElement
                               input?.click()
                             }}

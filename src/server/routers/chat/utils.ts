@@ -1,4 +1,4 @@
-import { HeadObjectCommand } from '@aws-sdk/client-s3'
+import { HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { Attachment } from './chat-router'
 import { BUCKET_NAME, FILE_TYPE_MAP, s3Client } from '@/lib/s3'
 import mammoth from 'mammoth'
@@ -6,6 +6,55 @@ import { FilePart, ImagePart, TextPart } from 'ai'
 import { db } from '@/db'
 import { knowledgeDocument } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+
+// Helper function to fetch video transcript with polling
+const fetchVideoTranscript = async (
+  s3Key: string,
+  maxAttempts: number = 10,
+  delayMs: number = 2000
+): Promise<string | null> => {
+  const transcriptKey = s3Key.replace(/\.[^/.]+$/, '.json') // Replace file extension with .json
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: `transcriptions/${transcriptKey}`,
+      })
+
+      const response = await s3Client.send(command)
+
+      if (response.Body) {
+        const bodyContents = await response.Body.transformToString()
+        const transcriptionData = JSON.parse(bodyContents) as any
+
+        // Extract transcript text from the transcription JSON
+        if (transcriptionData.text) {
+          return transcriptionData.text
+        }
+
+        return 'Transcript content found but format not recognized'
+      }
+    } catch (error: any) {
+      // Check if it's a NoSuchKey error (404 equivalent)
+      if (error.name === 'NoSuchKey' && attempt < maxAttempts) {
+        console.log(`Transcript not ready yet (attempt ${attempt}), waiting...`)
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+        continue
+      }
+
+      console.error(`Error fetching transcript (attempt ${attempt}):`, error)
+
+      // If not the last attempt, wait and try again
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+        continue
+      }
+    }
+  }
+
+  return null // Transcript not ready or doesn't exist
+}
 
 export const parseAttachments = async ({
   attachments,
@@ -23,7 +72,6 @@ export const parseAttachments = async ({
           .select()
           .from(knowledgeDocument)
           .where(eq(knowledgeDocument.id, id))
-
 
         if (document && document.sourceUrl) {
           return { type: 'link' as const, link: document.sourceUrl }
@@ -53,10 +101,26 @@ export const parseAttachments = async ({
           type: 'text' as const,
           text: `<attached_docx>${value}</attached_docx>`,
         } as TextPart
+      } else if (attachment.type === 'video') {
+        // Handle video transcript
+        const transcript = await fetchVideoTranscript(attachment.fileKey!)
+
+        if (transcript) {
+          return {
+            type: 'text' as const,
+            text: `<video_transcript>${transcript}</video_transcript>`,
+          } as TextPart
+        } else {
+          // If transcript is not ready, return a placeholder
+          return {
+            type: 'text' as const,
+            text: `<video_transcript>Video transcript is being processed and is not yet available. Please try again in a few moments.</video_transcript>`,
+          } as TextPart
+        }
       } else {
         return { type: 'file' as const, data: url, mimeType: contentType } as FilePart
       }
-    }),
+    })
   )
 
   const images = attachmentContents.filter(Boolean).filter((a) => a.type === 'image')
