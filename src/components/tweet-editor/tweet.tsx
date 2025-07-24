@@ -776,7 +776,14 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       }))
 
     enqueueTweet({ content, media })
-
+    shadowEditor.update(
+      () => {
+        const root = $getRoot()
+        root.clear()
+        root.append($createParagraphNode())
+      },
+      { tag: 'force-sync' },
+    )
     // await scheduleTweetMutation.mutateAsync({
     //   content,
     //   scheduledUnix: nextSlot.scheduledUnix,
@@ -827,6 +834,15 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         media,
       })
     }
+
+    shadowEditor.update(
+      () => {
+        const root = $getRoot()
+        root.clear()
+        root.append($createParagraphNode())
+      },
+      { tag: 'force-sync' },
+    )
   }
 
   const handlePostTweet = () => {
