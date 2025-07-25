@@ -2,13 +2,11 @@ import { db } from '@/db'
 import { listKnowledgeDocuments } from '@/db/queries/knowledge'
 import { knowledgeDocument } from '@/db/schema'
 import { firecrawl } from '@/lib/firecrawl'
-import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-import { Index } from '@upstash/vector'
 import { and, eq } from 'drizzle-orm'
 import { HTTPException } from 'hono/http-exception'
+import { TwitterApi } from 'twitter-api-v2'
 import { z } from 'zod'
 import { j, privateProcedure } from '../jstack'
-import { TwitterApi } from 'twitter-api-v2'
 
 const client = new TwitterApi(process.env.TWITTER_BEARER_TOKEN!).readOnly
 
@@ -20,18 +18,6 @@ const extractTweetId = (url: string): string | null => {
   const match = url.match(/\/status\/(\d+)/)
   return match?.[1] ? match[1] : null
 }
-
-const index = new Index({
-  url: 'https://nearby-oriole-27178-eu1-vector.upstash.io',
-  token:
-    'ABcFMG5lYXJieS1vcmlvbGUtMjcxNzgtZXUxYWRtaW5ZMkkwTWpreVlXTXRNV0kwTUMwME5XUTJMV0kyT0RrdE56VXpZMkl5TUdFNU56TTA=',
-})
-
-const textSplitter = new RecursiveCharacterTextSplitter({
-  chunkSize: 1000,
-  chunkOverlap: 200,
-  separators: ['\n\n', '\n', '.', '!', '?', ';', ',', ' '],
-})
 
 export type TweetMetadata = {
   isTweet: true
@@ -57,7 +43,7 @@ export const knowledgeRouter = j.router({
         .select()
         .from(knowledgeDocument)
         .where(
-          and(eq(knowledgeDocument.userId, user.id), eq(knowledgeDocument.id, input.id)),
+          and(eq(knowledgeDocument.userId, user.id), eq(knowledgeDocument.id, input.id))
         )
 
       if (!document) {
@@ -74,7 +60,7 @@ export const knowledgeRouter = j.router({
           limit: z.number().min(1).max(100).default(100).optional(),
           offset: z.number().min(0).default(0).optional(),
         })
-        .optional(),
+        .optional()
     )
     .query(async ({ c, ctx, input }) => {
       const { user } = ctx
@@ -101,10 +87,7 @@ export const knowledgeRouter = j.router({
           .update(knowledgeDocument)
           .set({ isDeleted: true })
           .where(
-            and(
-              eq(knowledgeDocument.id, input.id),
-              eq(knowledgeDocument.userId, user.id),
-            ),
+            and(eq(knowledgeDocument.id, input.id), eq(knowledgeDocument.userId, user.id))
           )
 
         return c.json({
