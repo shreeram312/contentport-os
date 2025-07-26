@@ -12,7 +12,6 @@
   <p align="center">
     The content engine for software companies
     <br />
-    <br />
     <a href="https://www.contentport.io/">View Demo</a>
     ·
     <a href="https://github.com/joschan21/contentport/issues">Report Bug</a>
