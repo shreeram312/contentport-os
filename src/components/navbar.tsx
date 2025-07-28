@@ -10,10 +10,10 @@ import Link from 'next/link'
 import { GITHUB_REPO } from '@/constants/misc'
 
 const Logo = ({ className }: { className?: string }) => (
-  <a href="#" className={cn('-m-1.5 p-1.5 flex items-center gap-1.5', className)}>
+  <Link href="/" className={cn('-m-1.5 p-1.5 flex items-center gap-1.5', className)}>
     <Icons.logo className="size-5" />
     <span className="font-medium">contentport</span>
-  </a>
+  </Link>
 )
 
 const ActionButtons = ({
