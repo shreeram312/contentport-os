@@ -15,7 +15,7 @@ const Page = async () => {
     <>
       <section className="bg-gray-100">
         <div className="relative max-w-7xl mx-auto">
-          {session ? <Navbar title="Studio" /> : <Navbar title="Get Started" />}
+          <Navbar title={session ? "Studio" : "Get Started"} />
         </div>
 
         <div className="relative isolate pt-14">
