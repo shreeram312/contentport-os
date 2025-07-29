@@ -140,5 +140,6 @@
     "tsx": "^4.20.3",
     "typescript": "^5",
     "wrangler": "^4.0.0"
-  }
+  },
+  "packageManager": "bun@1.2.19"
 }
