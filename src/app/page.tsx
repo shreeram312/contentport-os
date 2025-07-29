@@ -1,22 +1,21 @@
-'use client'
-
 import MuxPlayer from '@mux/mux-player-react'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Navbar from '@/components/navbar'
 import DuolingoButton from '@/components/ui/duolingo-button'
+import CustomTestimonials from '@/components/custom-testimonials'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
 
-const Testimonials = dynamic(
-  () => import('@/app/testimonials').then((mod) => ({ default: mod.Testimonials })),
-  { ssr: false },
-)
+const Page = async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
 
-const Page = () => {
   return (
     <>
       <section className="bg-gray-100">
         <div className="relative max-w-7xl mx-auto">
-          <Navbar />
+          {session ? <Navbar title="Studio" /> : <Navbar title="Get Started" />}
         </div>
 
         <div className="relative isolate pt-14">
@@ -37,7 +36,7 @@ const Page = () => {
               <div className="max-w-4xl mx-auto text-center">
                 <div className="flex flex-col justify-center items-center">
                   <div className="flex items-center justify-center gap-2 text-sm/6 mb-4 py-1 px-4 rounded-full bg-gray-200/50 text-gray-800">
-                  🎉 now open to everyone! 🎉
+                    🎉 now open to everyone! 🎉
                   </div>
                   <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-6xl">
                     The <span className="text-indigo-600">content engine </span> for
@@ -76,11 +75,19 @@ const Page = () => {
                     </div>
 
                     <div className="flex mt-4 flex-col gap-2 max-w-sm w-full">
-                      <Link href="/login">
-                        <DuolingoButton className="w-full h-12 sm:px-8">
-                          Start Posting More →
-                        </DuolingoButton>
-                      </Link>
+                      {session?.user ? (
+                        <Link href="/studio">
+                          <DuolingoButton className="w-full h-12 sm:px-8">
+                            Start Posting More →
+                          </DuolingoButton>
+                        </Link>
+                      ) : (
+                        <Link href="/login">
+                          <DuolingoButton className="w-full h-12 sm:px-8">
+                            Start Posting More →
+                          </DuolingoButton>
+                        </Link>
+                      )}
                     </div>
 
                     <div className="mt-2 flex items-center justify-center gap-4">
@@ -178,7 +185,7 @@ const Page = () => {
               />
             </div>
 
-            <Testimonials />
+            <CustomTestimonials />
           </div>
         </div>
       </section>

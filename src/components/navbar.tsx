@@ -19,15 +19,17 @@ const Logo = ({ className }: { className?: string }) => (
 const ActionButtons = ({
   className,
   onLinkClick,
+  title,
 }: {
   className?: string
   onLinkClick?: () => void
+  title: string
 }) => (
   <div className={cn('flex gap-2 items-center', className)}>
     <GitHubStarButton
       className={cn(
         'whitespace-nowrap',
-        className?.includes('w-full') && 'w-full justify-center'
+        className?.includes('w-full') && 'w-full justify-center',
       )}
       repo={GITHUB_REPO}
     />
@@ -36,17 +38,17 @@ const ActionButtons = ({
         baseStyles,
         variantStyles.primary,
         sizeStyles.sm,
-        className?.includes('w-full') && 'w-full justify-center'
+        className?.includes('w-full') && 'w-full justify-center',
       )}
-      href="/login"
+      href={title === 'Studio' ? '/studio' : '/login'}
       onClick={onLinkClick}
     >
-      Get Started
+      {title}
     </Link>
   </div>
 )
 
-const Navbar = () => {
+const Navbar = ({ title }: { title: string }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -80,7 +82,7 @@ const Navbar = () => {
           </button>
         </div>
         <div className="hidden lg:flex gap-4 lg:flex-1 lg:justify-end">
-          <ActionButtons />
+          <ActionButtons title={title} />
         </div>
       </nav>
 
@@ -105,6 +107,7 @@ const Navbar = () => {
             <div className="-my-6 divide-y divide-gray-500/10">
               <div className="py-6 space-y-4">
                 <ActionButtons
+                  title={title}
                   className="flex-col space-y-4 w-full"
                   onLinkClick={() => setMobileMenuOpen(false)}
                 />
