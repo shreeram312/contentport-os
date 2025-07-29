@@ -2,9 +2,13 @@ import MuxPlayer from '@mux/mux-player-react'
 import Link from 'next/link'
 import Navbar from '@/components/navbar'
 import DuolingoButton from '@/components/ui/duolingo-button'
-import CustomTestimonials from '@/components/custom-testimonials'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
+import dynamic from 'next/dynamic'
+
+const Testimonials = dynamic(() =>
+  import('@/app/testimonials').then((mod) => ({ default: mod.Testimonials })),
+)
 
 const Page = async () => {
   const session = await auth.api.getSession({
@@ -15,7 +19,7 @@ const Page = async () => {
     <>
       <section className="bg-gray-100">
         <div className="relative max-w-7xl mx-auto">
-          <Navbar title={session ? "Studio" : "Get Started"} />
+          <Navbar title={session ? 'Studio' : 'Get Started'} />
         </div>
 
         <div className="relative isolate pt-14">
@@ -185,7 +189,7 @@ const Page = async () => {
               />
             </div>
 
-            <CustomTestimonials />
+            <Testimonials />
           </div>
         </div>
       </section>
