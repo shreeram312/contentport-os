@@ -1,14 +1,10 @@
-import MuxPlayer from '@mux/mux-player-react'
-import Link from 'next/link'
 import Navbar from '@/components/navbar'
 import DuolingoButton from '@/components/ui/duolingo-button'
-import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
-import dynamic from 'next/dynamic'
-
-const Testimonials = dynamic(() =>
-  import('@/app/testimonials').then((mod) => ({ default: mod.Testimonials })),
-)
+import MuxPlayer from '@mux/mux-player-react'
+import { headers } from 'next/headers'
+import Link from 'next/link'
+import Script from 'next/script'
 
 const Page = async () => {
   const session = await auth.api.getSession({
@@ -189,7 +185,19 @@ const Page = async () => {
               />
             </div>
 
-            <Testimonials />
+            <>
+              <Script
+                src="https://widget.senja.io/widget/3fae6f42-6a34-4da8-81f2-d3389606a704/platform.js"
+                type="text/javascript"
+                async
+              ></Script>
+              <div
+                className="senja-embed block w-full mt-20"
+                data-id="3fae6f42-6a34-4da8-81f2-d3389606a704"
+                data-mode="shadow"
+                data-lazyload="false"
+              ></div>
+            </>
           </div>
         </div>
       </section>
