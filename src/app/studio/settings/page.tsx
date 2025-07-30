@@ -22,6 +22,16 @@ const Page = () => {
   const searchParams = useSearchParams()
   const status = searchParams.get('s')
 
+  const handleLogout = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push('/')
+        },
+      },
+    })
+  }
+
   const { data: subscription } = useQuery({
     queryKey: ['get-subscription'],
     queryFn: async () => {
@@ -53,32 +63,10 @@ const Page = () => {
           return
         }
 
-        // Add optional refetching of session every set interval incase the upgrade takes a while to be logged in the db
         return
       }
     }
   }, [data])
-
-  // const { data: limit } = useQuery({
-  //   queryKey: ['get-limit'],
-  //   queryFn: async () => {
-  //     const res = await client.settings.limit.$get()
-  //     return await res.json()
-  //   },
-  // })
-
-  // const formatResetTime = (timestamp: number) => {
-  //   const date = new Date(timestamp)
-  //   const timeStr = format(date, 'h:mm a')
-
-  //   if (isToday(date)) {
-  //     return `Resets today at ${timeStr}`
-  //   }
-  //   if (isTomorrow(date)) {
-  //     return `Resets tomorrow at ${timeStr}`
-  //   }
-  //   return `Resets ${format(date, 'MMM d')} at ${timeStr}`
-  // }
 
   const { mutate: createBillingPortalUrl, isPending: isCreatingBillingPortalUrl } =
     useMutation({
@@ -163,6 +151,15 @@ const Page = () => {
               ) : null}
             </div>
           </div>
+        </div>
+
+        <div className="flex justify-center mt-4">
+          <p
+            onClick={handleLogout}
+            className="underline cursor-pointer underline-offset-2 text-gray-600 hover:text-gray-800"
+          >
+            Sign out
+          </p>
         </div>
       </div>
     </div>
