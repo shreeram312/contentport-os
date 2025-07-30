@@ -4,6 +4,10 @@ import { Metadata, Viewport } from 'next'
 import { Instrument_Serif, JetBrains_Mono, Rubik } from 'next/font/google'
 import { Suspense } from 'react'
 import { Toaster } from 'react-hot-toast'
+import { Databuddy, track } from '@databuddy/sdk'
+
+track('my-event', { myProperty: '' })
+
 import './globals.css'
 
 const title = 'Contentport'
@@ -58,6 +62,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         className={`${rubik.className} ${elegant.variable} ${jetBrainsMono.variable} antialiased light`}
       >
         <Analytics />
+
+        <Databuddy
+          clientId="-IrMWaFxrpJQiiMMpSc4I"
+          disabled={process.env.NODE_ENV === 'development'}
+          enableBatching={true}
+          trackErrors={true}
+        />
+
         <Suspense>
           <Toaster position="top-center" />
 
