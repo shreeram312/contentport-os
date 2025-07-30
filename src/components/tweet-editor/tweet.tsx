@@ -55,6 +55,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import ContentLengthIndicator from './content-length-indicator'
 import { Calendar20 } from './date-picker'
 import { ImageTool } from './image-tool'
+import { useChat } from '@/hooks/use-chat'
+import { nanoid } from 'nanoid'
 
 interface TweetProps {
   onDelete?: () => void
@@ -79,6 +81,7 @@ const TWITTER_SIZE_LIMITS = {
 const MAX_MEDIA_COUNT = 4
 
 export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
+  const { startNewChat } = useChat()
   const { mediaFiles, setMediaFiles, setCurrentTweet, shadowEditor } = useTweets()
   const { addVideoAttachment, attachments } = useAttachments()
 
@@ -99,7 +102,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
 
     // Check if this video is already attached
     const existingAttachment = attachments.find(
-      (att) => att.type === 'video' && att.fileKey === mediaFile.s3Key
+      (att) => att.type === 'video' && att.fileKey === mediaFile.s3Key,
     )
 
     if (existingAttachment) {
@@ -277,7 +280,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           fileName: file.name,
           fileType: file.type,
         },
-        { init: { signal: controller.signal } }
+        { init: { signal: controller.signal } },
       )
 
       const { url, fields, fileKey } = await res.json()
@@ -324,7 +327,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           s3Key,
           mediaType,
         },
-        { init: { signal: controller.signal } }
+        { init: { signal: controller.signal } },
       )
 
       return await res.json()
@@ -368,7 +371,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           >
             See tweet
           </Link>
-        </div>
+        </div>,
       )
 
       posthog.capture('tweet_posted', {
@@ -392,7 +395,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           root.clear()
           root.append($createParagraphNode())
         },
-        { tag: 'force-sync' }
+        { tag: 'force-sync' },
       )
     },
     onError: (error) => {
@@ -507,7 +510,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           root.clear()
           root.append($createParagraphNode())
         },
-        { tag: 'force-sync' }
+        { tag: 'force-sync' },
       )
 
       setMediaFiles([])
@@ -522,7 +525,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   })
 
   const validateFile = (
-    file: File
+    file: File,
   ): { valid: boolean; type?: 'image' | 'gif' | 'video'; error?: string } => {
     // Check file type
     let mediaType: 'image' | 'gif' | 'video'
@@ -620,8 +623,8 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                   media_key: twitterResult.media_key,
                   s3Key: s3Result.fileKey,
                 }
-              : mf
-          )
+              : mf,
+          ),
         )
 
         posthog.capture('tweet_media_uploaded', {
@@ -635,8 +638,8 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       } catch (error) {
         setMediaFiles((prev) =>
           prev.map((mf) =>
-            mf.url === url ? { ...mf, uploading: false, error: 'Upload failed' } : mf
-          )
+            mf.url === url ? { ...mf, uploading: false, error: 'Upload failed' } : mf,
+          ),
         )
       }
     }
@@ -755,8 +758,10 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           root.clear()
           root.append($createParagraphNode())
         },
-        { tag: 'force-sync' }
+        { tag: 'force-sync' },
       )
+
+      startNewChat({ newId: nanoid() })
 
       toast.success(
         <div className="flex gap-1.5 items-center">
@@ -767,7 +772,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           >
             See queue
           </Link>
-        </div>
+        </div>,
       )
     },
   })
@@ -919,7 +924,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
 
     if (editTweetData?.tweet?.scheduledFor) {
       scheduledUnix = Math.floor(
-        new Date(editTweetData.tweet.scheduledFor).getTime() / 1000
+        new Date(editTweetData.tweet.scheduledFor).getTime() / 1000,
       )
     }
 
@@ -962,7 +967,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         root.clear()
         root.append($createParagraphNode())
       },
-      { tag: 'force-sync' }
+      { tag: 'force-sync' },
     )
 
     setMediaFiles([])
@@ -1011,7 +1016,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           <div
             className={cn(
               'relative bg-white p-6 rounded-2xl w-full border border-gray-900 border-opacity-10 bg-clip-padding shadow transition-colors',
-              isDragging && 'border-indigo-600 border-dashed'
+              isDragging && 'border-indigo-600 border-dashed',
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -1032,7 +1037,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                       <ContentEditable
                         spellCheck={false}
                         className={cn(
-                          'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none'
+                          'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none',
                         )}
                       />
                     }
@@ -1170,7 +1175,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                 <div className="mt-3 pt-3 border-t border-stone-200 flex items-center justify-between">
                   <div
                     className={cn(
-                      'flex items-center gap-1.5 bg-stone-100 p-1.5 rounded-lg'
+                      'flex items-center gap-1.5 bg-stone-100 p-1.5 rounded-lg',
                     )}
                   >
                     <TooltipProvider>
@@ -1183,7 +1188,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                             type="button"
                             onClick={() => {
                               const input = document.getElementById(
-                                'media-upload'
+                                'media-upload',
                               ) as HTMLInputElement
                               input?.click()
                             }}
