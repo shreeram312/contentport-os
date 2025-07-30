@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   Sidebar,
@@ -8,25 +8,19 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import {
-  ArrowUpCircleIcon,
-  LightbulbIcon,
-  MessageSquare,
-  LogOut,
-  X,
-} from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { authClient } from "@/lib/auth-client"
+} from '@/components/ui/sidebar'
+import { ArrowUpCircleIcon, LightbulbIcon, MessageSquare, LogOut, X } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { authClient } from '@/lib/auth-client'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -35,19 +29,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog'
 
-export const DashboardSidebar = ({
-  ...props
-}: React.ComponentProps<typeof Sidebar>) => {
+export const DashboardSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
   const session = authClient.useSession()
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
-  const [feedback, setFeedback] = useState("")
+  const [feedback, setFeedback] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSignOut = async () => {
     await authClient.signOut()
-    window.location.href = "/"
+    window.location.href = '/'
   }
 
   const handleSubmitFeedback = async () => {
@@ -57,7 +49,7 @@ export const DashboardSidebar = ({
     try {
       // TODO: Implement feedback submission
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      setFeedback("")
+      setFeedback('')
       setIsFeedbackOpen(false)
     } finally {
       setIsSubmitting(false)
@@ -69,10 +61,7 @@ export const DashboardSidebar = ({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
+            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#">
                 <span className="text-base/6 tracking-tight font-medium">
                   contentport.
@@ -85,10 +74,7 @@ export const DashboardSidebar = ({
       <SidebarContent className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive
-              className="w-full h-12 justify-start gap-2"
-            >
+            <SidebarMenuButton isActive className="w-full h-12 justify-start gap-2">
               <LightbulbIcon className="h-4 w-4" />
               <span>Ideas</span>
             </SidebarMenuButton>
@@ -123,23 +109,17 @@ export const DashboardSidebar = ({
                 />
               </div>
               <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsFeedbackOpen(false)}
-                >
+                <Button variant="outline" onClick={() => setIsFeedbackOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  onClick={handleSubmitFeedback}
-                  disabled={isSubmitting}
-                >
+                <Button onClick={handleSubmitFeedback} disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <span className="mr-2">Submitting</span>
                       <span className="animate-spin">...</span>
                     </>
                   ) : (
-                    "Submit"
+                    'Submit'
                   )}
                 </Button>
               </DialogFooter>
@@ -147,15 +127,9 @@ export const DashboardSidebar = ({
           </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full h-10 justify-start gap-2"
-              >
+              <Button variant="ghost" className="w-full h-10 justify-start gap-2">
                 <Avatar className="h-4 w-4">
-                  <AvatarImage
-                    src={session?.data?.user.image ?? undefined}
-                    alt="User"
-                  />
+                  <AvatarImage src={session?.data?.user.image ?? undefined} alt="User" />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
                 <span>{session.data?.user.email}</span>
