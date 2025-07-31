@@ -55,7 +55,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import ContentLengthIndicator from './content-length-indicator'
 import { Calendar20 } from './date-picker'
 import { ImageTool } from './image-tool'
-import { useChat } from '@/hooks/use-chat'
 import { nanoid } from 'nanoid'
 
 interface TweetProps {
@@ -81,7 +80,6 @@ const TWITTER_SIZE_LIMITS = {
 const MAX_MEDIA_COUNT = 4
 
 export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
-  const { startNewChat } = useChat()
   const { mediaFiles, setMediaFiles, setCurrentTweet, shadowEditor } = useTweets()
   const { addVideoAttachment, attachments } = useAttachments()
 
@@ -760,8 +758,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         },
         { tag: 'force-sync' },
       )
-
-      startNewChat({ newId: nanoid() })
 
       toast.success(
         <div className="flex gap-1.5 items-center">
