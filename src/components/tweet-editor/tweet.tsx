@@ -38,7 +38,7 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import posthog from 'posthog-js'
-import { PropsWithChildren, useCallback, useRef, useState } from 'react'
+import { PropsWithChildren, useCallback, useRef, useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { Icons } from '../icons'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
@@ -89,7 +89,14 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const [imageDrawerOpen, setImageDrawerOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false)
-  const [dontShowAgain, setDontShowAgain] = useState(false)
+
+  const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
+
+  useEffect(() => {
+    setSkipPostConfirmation(
+      localStorage.getItem('skipPostConfirmation') === 'true',
+    )
+  }, [])
 
   // Add video to chat attachments
   const handleAddVideoToChat = (mediaFile: MediaFile) => {
@@ -845,6 +852,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
     }
   }
 
+
   const handlePostTweet = () => {
     const content = shadowEditor?.read(() => $getRoot().getTextContent()) || ''
 
@@ -863,9 +871,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       return
     }
 
-    const skipConfirmation = localStorage.getItem('skipPostConfirmation') === 'true'
-
-    if (skipConfirmation) {
+    if (skipPostConfirmation) {
       performPostTweet()
     } else {
       setShowPostConfirmModal(true)
@@ -888,10 +894,16 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
     })
   }
 
-  const handleConfirmPost = () => {
-    if (dontShowAgain) {
+  const toggleSkipConfirmation = (checked: boolean) => {
+    setSkipPostConfirmation(checked)
+    if (checked) {
       localStorage.setItem('skipPostConfirmation', 'true')
+    } else {
+      localStorage.removeItem('skipPostConfirmation')
     }
+  }
+
+  const handleConfirmPost = () => {
     setShowPostConfirmModal(false)
     performPostTweet()
   }
@@ -1329,7 +1341,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                               </DuolingoButton>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>A confirmation modal will open</p>
+                              <p>{skipPostConfirmation ? 'The tweet will be posted immediately' : 'A confirmation modal will open'}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -1446,20 +1458,17 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
               This will post to Twitter. Continue?
             </p>
             <DuolingoCheckbox
-              id="dont-show-again"
+              id="skip-post-confirmation"
               label="Don't show this again"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
+              checked={skipPostConfirmation}
+              onChange={(e) => toggleSkipConfirmation(e.target.checked)}
             />
           </div>
           <div className="flex justify-end gap-3">
             <DuolingoButton
               variant="secondary"
               size="sm"
-              onClick={() => {
-                setShowPostConfirmModal(false)
-                setDontShowAgain(false)
-              }}
+              onClick={() => setShowPostConfirmModal(false)}
             >
               Cancel
             </DuolingoButton>

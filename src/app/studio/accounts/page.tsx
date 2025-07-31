@@ -26,6 +26,7 @@ import DuolingoInput from '@/components/ui/duolingo-input'
 import DuolingoTextarea from '@/components/ui/duolingo-textarea'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AccountAvatar, mapToConnectedAccount, useAccount } from '@/hooks/account-ctx'
 import { authClient } from '@/lib/auth-client'
@@ -49,7 +50,7 @@ import {
   X,
 } from 'lucide-react'
 import posthog from 'posthog-js'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 interface TweetCard {
@@ -90,9 +91,23 @@ export default function AccountsPage() {
   const [inviteLink, setInviteLink] = useState('')
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [isStyleSettingsOpen, setIsStyleSettingsOpen] = useState(false)
+  const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
   const { account } = useAccount()
   const { data } = authClient.useSession()
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const stored = localStorage.getItem('skipPostConfirmation')
+    if (stored !== null) {
+      setSkipPostConfirmation(stored === 'true')
+    }
+  }, [])
+
+  const handleSkipConfirmationToggle = (checked: boolean) => {
+    setSkipPostConfirmation(checked)
+    localStorage.setItem('skipPostConfirmation', checked.toString())
+    toast.success(checked ? 'Post confirmation disabled' : 'Post confirmation enabled')
+  }
 
   const { mutate: createOAuthLink, isPending: isCreatingOAuthLink } = useMutation({
     mutationFn: async () => {
@@ -455,6 +470,33 @@ export default function AccountsPage() {
             <p className="text-stone-600">No accounts connected yet</p>
           </div>
         )}
+      </div>
+
+      <Separator />
+
+      {/* Post Settings Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-stone-900">Post Settings</h2>
+          <p className="text-stone-600 mt-1">Configure posting behavior and preferences</p>
+        </div>
+
+        <div className="bg-white border border-stone-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-stone-800">
+                Skip Post Confirmation
+              </h3>
+              <p className="text-sm text-stone-600">
+                When enabled, posts will be sent immediately without showing a confirmation modal
+              </p>
+            </div>
+            <Switch
+              checked={skipPostConfirmation}
+              onCheckedChange={handleSkipConfirmationToggle}
+            />
+          </div>
+        </div>
       </div>
 
       <Separator />

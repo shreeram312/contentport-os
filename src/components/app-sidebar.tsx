@@ -68,6 +68,13 @@ const initialConfig = {
 
 type ChatInput = InferInput['chat']['generate']
 
+const getCurrentWorkingCat = () => {
+  const now = new Date()
+  const hour = now.getHours()
+  
+  return hour < 12 ? '/gifs/typing-black-cat.gif' : '/gifs/typing-grey-cat.gif'
+}
+
 function ChatInput() {
   const editor = useEditor('app-sidebar')
   let { chatId, startNewChat } = useChat()
@@ -344,7 +351,7 @@ export function TweetSuggestionLoader() {
         <div className="h-full flex items-center justify-start gap-3 p-2">
           <div className="relative h-28 w-28 overflow-hidden rounded-md">
             <img
-              src="/images/typing-cat.gif"
+              src={getCurrentWorkingCat()}
               alt="Typing cat"
               className="scale-[1.3] object-cover object-right"
             />
@@ -369,7 +376,7 @@ export function DraftsLoadingState() {
         <div className="h-full flex items-center justify-start gap-3 p-2">
           <div className="relative h-28 w-28 overflow-hidden rounded-md">
             <img
-              src="/images/typing-cat.gif"
+              src={getCurrentWorkingCat()}
               alt="Typing cat"
               className="scale-[1.3] object-cover object-right"
             />
