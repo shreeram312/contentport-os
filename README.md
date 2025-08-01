@@ -76,7 +76,8 @@ UX problems
 - no realistic twitter preview
 - you cannot @people
 
-
+BUGS:
+- after typing in tweet editor, then typing in chat, after the first letter it loses focus
 
 TO BECOME OPEN
 - queueing tweet then editing -> duplicate in queue (X)

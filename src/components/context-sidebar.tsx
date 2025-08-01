@@ -1,7 +1,7 @@
 'use client'
 
 import { buttonVariants } from '@/components/ui/button'
-import { useChat } from '@/hooks/use-chat'
+import { useChatContext } from '@/hooks/use-chat'
 import { authClient } from '@/lib/auth-client'
 import { cn } from '@/lib/utils'
 import { ArrowLeftFromLine, ArrowRightFromLine, PanelLeft, Settings } from 'lucide-react'
@@ -34,7 +34,7 @@ export const LeftSidebar = () => {
 
   const pathname = usePathname()
 
-  const { chatId } = useChat()
+  const { id } = useChatContext()
 
   const isCollapsed = state === 'collapsed'
 
@@ -84,7 +84,7 @@ export const LeftSidebar = () => {
             <Link
               href={{
                 pathname: '/studio',
-                search: serialize({ chatId }),
+                search: serialize({ chatId: id }),
               }}
               className={cn(
                 buttonVariants({
@@ -125,7 +125,7 @@ export const LeftSidebar = () => {
               <Link
                 href={{
                   pathname: '/studio/knowledge',
-                  search: serialize({ chatId }),
+                  search: serialize({ chatId: id }),
                 }}
                 className={cn(
                   buttonVariants({
@@ -152,7 +152,7 @@ export const LeftSidebar = () => {
               <Link
                 href={{
                   pathname: '/studio/scheduled',
-                  search: serialize({ chatId }),
+                  search: serialize({ chatId: id }),
                 }}
                 className={cn(
                   buttonVariants({
@@ -179,7 +179,7 @@ export const LeftSidebar = () => {
               <Link
                 href={{
                   pathname: '/studio/posted',
-                  search: serialize({ chatId }),
+                  search: serialize({ chatId: id }),
                 }}
                 className={cn(
                   buttonVariants({
@@ -220,7 +220,7 @@ export const LeftSidebar = () => {
             <Link
               href={{
                 pathname: '/studio/accounts',
-                search: serialize({ chatId }),
+                search: serialize({ chatId: id }),
               }}
               className={cn(
                 buttonVariants({
@@ -259,7 +259,7 @@ export const LeftSidebar = () => {
               <Link
                 href={{
                   pathname: `/studio/settings`,
-                  search: chatId ? `?chatId=${chatId}` : undefined,
+                  search: id ? `?chatId=${id}` : undefined,
                 }}
                 className={cn(
                   buttonVariants({
@@ -289,18 +289,9 @@ export const LeftSidebar = () => {
                 </div>
               </Link>
             ) : null}
-            {/* <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLSdCtO75IY051uoGcxBQ_vK3uNnNnokb_Z8VTrp5JZJnzUI02g/viewform?usp=dialog"
-              className={buttonVariants({ variant: 'outline' })}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Feedback 🫶
-            </a> */}
           </div>
         </div>
 
-        {/* Doesn't look right with the other non-collapsed footer, can remove if cannot be fixed. */}
         <div
           className={cn(
             'transition-all duration-0 ease-out overflow-hidden',
@@ -311,7 +302,7 @@ export const LeftSidebar = () => {
             <Link
               href={{
                 pathname: `/studio/settings`,
-                search: chatId ? `?chatId=${chatId}` : undefined,
+                search: id ? `?chatId=${id}` : undefined,
               }}
               className={buttonVariants({
                 variant: 'ghost',

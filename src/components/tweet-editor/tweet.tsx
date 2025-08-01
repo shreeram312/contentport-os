@@ -238,7 +238,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
             size="icon"
             variant="secondary"
             onClick={() => handleAddVideoToChat(mediaFile)}
-            className="size-11"
             title="Add video transcript to chat"
           >
             <MessageSquarePlus className="size-4" />
@@ -248,7 +247,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           size="icon"
           variant="secondary"
           onClick={() => downloadMediaFile(mediaFile)}
-          className="size-11"
         >
           <Download className="size-4" />
         </DuolingoButton>

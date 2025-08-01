@@ -19,7 +19,7 @@ interface DuolingoButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const baseStyles =
-  'font-semibold w-full rounded-lg relative transition-transform active:translate-y-0.5 active:shadow-none focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center'
+  'font-semibold w-full rounded-lg relative transition-transform active:translate-y-0.5 active:shadow-none focus:outline-none flex items-center justify-center'
 
 export const variantStyles = {
   primary:

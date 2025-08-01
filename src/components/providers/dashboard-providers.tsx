@@ -42,7 +42,7 @@ export function DashboardProviders({ children }: ProvidersProps) {
 
   return (
     <ConfettiProvider>
-      <NuqsAdapter>
+      <NuqsAdapter> 
         <AccountProvider>
           <EditorProvider>
             <TweetProvider>

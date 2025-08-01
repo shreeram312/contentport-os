@@ -1,12 +1,8 @@
 'use client'
 
-import { Message, MessageContent } from '@/components/ui/message'
-import { useChat } from '@/hooks/use-chat'
-import { ArrowUp, Check, Eye, Paperclip, Plus, X } from 'lucide-react'
-import posthog from 'posthog-js'
-import { useContext, useEffect, useState } from 'react'
+import { ArrowUp, Paperclip, Plus, Square, X } from 'lucide-react'
+import { useCallback, useContext, useEffect } from 'react'
 
-import { Loader } from '@/components/ui/loader'
 import {
   Sidebar,
   SidebarContent,
@@ -16,21 +12,19 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { AccountAvatar } from '@/hooks/account-ctx'
 import { useAttachments } from '@/hooks/use-attachments'
-import { useEditor } from '@/hooks/use-editors'
+import { useChatContext } from '@/hooks/use-chat'
 import { useTweets } from '@/hooks/use-tweets'
 import { client } from '@/lib/client'
 import { MultipleEditorStorePlugin } from '@/lib/lexical-plugins/multiple-editor-plugin'
 import PlaceholderPlugin from '@/lib/placeholder-plugin'
-import { InferInput } from '@/server'
-import { LexicalComposer } from '@lexical/react/LexicalComposer'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { UIMessage } from 'ai'
+import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 import {
   $createParagraphNode,
   $createTextNode,
@@ -38,210 +32,49 @@ import {
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
 } from 'lexical'
-import { nanoid } from 'nanoid'
-import toast from 'react-hot-toast'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AttachmentItem } from './attachment-item'
-import { Improvements } from './improvements'
+import { Messages } from './chat/messages'
 import { KnowledgeSelector, SelectedKnowledgeDocument } from './knowledge-selector'
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import DuolingoButton from './ui/duolingo-button'
-import { FileUpload, FileUploadContext, FileUploadTrigger } from './ui/file-upload'
-import { TextShimmer } from './ui/text-shimmer'
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
-import useTweetMetadata from '@/hooks/use-tweet-metdata'
+import {
+  FileUpload,
+  FileUploadContext,
+  FileUploadTrigger
+} from './ui/file-upload'
+import { PromptSuggestion } from './ui/prompt-suggestion'
 
-const initialConfig = {
-  namespace: 'app-sidebar-input',
-  theme: {
-    text: {
-      bold: 'font-bold',
-      italic: 'italic',
-      underline: 'underline',
-    },
-  },
-  onError: (error: Error) => {
-    console.error('[Context Document Editor Error]', error)
-  },
-  editable: true,
-  nodes: [],
-}
+const ChatInput = ({
+  onSubmit,
+  onStop,
+  disabled,
+  handleFilesAdded,
+}: {
+  onSubmit: (text: string, editorContent: string) => void
+  onStop: () => void
+  disabled: boolean
+  handleFilesAdded: (files: File[]) => void
+}) => {
+  const [editor] = useLexicalComposerContext()
+  const { isDragging } = useContext(FileUploadContext)
 
-type ChatInput = InferInput['chat']['generate']
-
-const getCurrentWorkingCat = () => {
-  const now = new Date()
-  const hour = now.getHours()
-  
-  return hour < 12 ? '/gifs/typing-black-cat.gif' : '/gifs/typing-grey-cat.gif'
-}
-
-function ChatInput() {
-  const editor = useEditor('app-sidebar')
-  let { chatId, startNewChat } = useChat()
-  const { handleInputChange, input, messages, append } = useChat()
-  const { currentTweet } = useTweets()
-  const { drafts, clearDrafts, draftCheckpoint, selectedDraftIndex } = useTweets()
-  const { content } = useTweetMetadata()
+  const { attachments, removeAttachment, addKnowledgeAttachment, hasUploading } =
+    useAttachments()
 
   const { shadowEditor } = useTweets()
 
-  const { attachments, addChatAttachment, removeAttachment, hasUploading } =
-    useAttachments()
+  const handleSubmit = () => {
+    const editorContent = shadowEditor.read(() => $getRoot().getTextContent().trim())
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    const text = editor.read(() => $getRoot().getTextContent().trim())
 
-    posthog.capture('assistant_used', { input })
+    onSubmit(text, editorContent)
 
-    if (hasUploading) {
-      toast.error('Please wait for file uploads to complete')
-      return
-    }
-
-    if (!input.trim()) {
-      console.log('no input')
-      return
-    }
-
-    if (drafts.length > 0) {
-      const currentDraft = drafts[selectedDraftIndex]
-
-      if (currentDraft) {
-        shadowEditor.update(
-          () => {
-            const root = $getRoot()
-            const p = $createParagraphNode()
-            const text = $createTextNode(currentDraft.improvedText)
-            p.append(text)
-            root.clear()
-            root.append(p)
-          },
-          { tag: 'force-sync' },
-        )
-
-        clearDrafts()
-        draftCheckpoint.current = null
-      }
-    }
-
-    if (messages.length === 0 && !chatId) {
-      chatId = (await startNewChat({ newId: nanoid() })) as string
-    }
-
-    const message = {
-      id: nanoid(),
-      content: input,
-      role: 'user',
-      metadata: { attachments },
-      chatId: chatId as string,
-    }
-
-    // @ts-ignore
-    append(message, {
-      body: {
-        message,
-        // do not transmit image
-        tweet: { ...currentTweet, content, image: undefined },
-      },
-    })
-
-    // cleanup
-    attachments.forEach((attachment) => {
-      removeAttachment(attachment)
-    })
-
-    editor?.update(() => {
+    editor.update(() => {
       const root = $getRoot()
       root.clear()
+      root.append($createParagraphNode())
     })
-  }
-
-  useEffect(() => {
-    const removeUpdateListener = editor?.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        const root = $getRoot()
-        const text = root.getTextContent()
-
-        handleInputChange({
-          target: { value: text },
-        } as React.ChangeEvent<HTMLInputElement>)
-      })
-    })
-
-    return () => {
-      removeUpdateListener?.()
-    }
-  }, [editor, handleInputChange])
-
-  const handleFilesAdded = (files: File[]) => files.forEach(addChatAttachment)
-
-  return (
-    <FileUpload onFilesAdded={handleFilesAdded}>
-      <div className="mb-2 flex gap-2 items-center">
-        {attachments.map((attachment, i) => {
-          const onRemove = () => removeAttachment({ id: attachment.id })
-          return (
-            <AttachmentItem
-              onRemove={onRemove}
-              key={attachment.id}
-              attachment={attachment}
-            />
-          )
-        })}
-      </div>
-
-      <ChatInputInner onSubmit={onSubmit} onFilesAdded={handleFilesAdded} />
-    </FileUpload>
-  )
-}
-
-function ChatInputInner({
-  onSubmit,
-  onFilesAdded,
-}: {
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
-  onFilesAdded: (files: File[]) => void
-}) {
-  const editor = useEditor('app-sidebar')
-  const context = useContext(FileUploadContext)
-  const isDragging = context?.isDragging ?? false
-  const [showTutorial, setShowTutorial] = useState(false)
-  const { open } = useSidebar()
-
-  const { addKnowledgeAttachment, hasUploading } = useAttachments()
-
-  useEffect(() => {
-    const hasSeenTutorial = localStorage.getItem('chat-input-tutorial-seen')
-    if (!hasSeenTutorial && open) {
-      setShowTutorial(true)
-    } else {
-      setShowTutorial(false)
-    }
-  }, [open])
-
-  const handleTutorialComplete = () => {
-    localStorage.setItem('chat-input-tutorial-seen', 'true')
-    setShowTutorial(false)
-  }
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items
-    if (!items) return
-
-    const files: File[] = []
-    Array.from(items).forEach((item) => {
-      if (item.kind === 'file') {
-        const file = item.getAsFile()
-        if (file) {
-          files.push(file)
-        }
-      }
-    })
-
-    if (files.length > 0) {
-      e.preventDefault()
-      onFilesAdded(files)
-    }
   }
 
   useEffect(() => {
@@ -250,13 +83,25 @@ function ChatInputInner({
       (event: KeyboardEvent | null) => {
         if (event && !event.shiftKey) {
           event.preventDefault()
-          if (hasUploading) return true
 
-          handleTutorialComplete()
-          onSubmit(event as any)
-          return true
+          const editorContent = shadowEditor.read(() =>
+            $getRoot().getTextContent().trim(),
+          )
+
+          editor.update(() => {
+            const root = $getRoot()
+            const text = root.getTextContent().trim()
+            if (!text) return
+
+            onSubmit(text, editorContent)
+
+            root.clear()
+            const paragraph = $createParagraphNode()
+            root.append(paragraph)
+          })
         }
-        return false
+
+        return true
       },
       COMMAND_PRIORITY_HIGH,
     )
@@ -264,219 +109,134 @@ function ChatInputInner({
     return () => {
       removeCommand?.()
     }
-  }, [editor, onSubmit, hasUploading])
+  }, [editor, onSubmit])
 
-  const handleAddKnowledgeDoc = (doc: SelectedKnowledgeDocument) => {
-    addKnowledgeAttachment(doc)
-  }
+  const handleAddKnowledgeDoc = useCallback(
+    (doc: SelectedKnowledgeDocument) => {
+      addKnowledgeAttachment(doc)
+    },
+    [addKnowledgeAttachment],
+  )
 
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    handleTutorialComplete()
-    onSubmit(e)
-  }
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      const files: File[] = []
+      Array.from(items).forEach((item) => {
+        if (item.kind === 'file') {
+          const file = item.getAsFile()
+          if (file) {
+            files.push(file)
+          }
+        }
+      })
+
+      if (files.length > 0) {
+        e.preventDefault()
+        handleFilesAdded(files)
+      }
+    },
+    [handleFilesAdded],
+  )
 
   return (
-    <div className="space-y-3">
-      <div
-        className={`relative transition-all duration-200 ${
-          isDragging ? 'ring-2 rounded-xl ring-indigo-600 ring-offset-2' : ''
-        }`}
-      >
-        {isDragging && (
-          <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/50 backdrop-blur-sm rounded-xl z-10">
-            <p className="text-indigo-600 font-medium">Drop files here to add to chat</p>
-          </div>
-        )}
+    <div>
+      <div className="mb-2 flex gap-2 items-center">
+        {attachments.map((attachment, i) => {
+          const onRemove = () => removeAttachment({ id: attachment.id })
+          return (
+            <motion.div
+              key={attachment.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2, delay: i * 0.1 }}
+            >
+              <AttachmentItem
+                onRemove={onRemove}
+                key={attachment.id}
+                attachment={attachment}
+              />
+            </motion.div>
+          )
+        })}
+      </div>
 
-        <Tooltip open={showTutorial}>
-          <TooltipTrigger asChild>
-            <form onSubmit={handleFormSubmit} className="relative">
-              <div className="rounded-xl bg-white border-2 border-gray-200 shadow-[0_2px_0_#E5E7EB] font-medium transition-all duration-200 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-600">
-                <LexicalComposer initialConfig={initialConfig}>
-                  <PlainTextPlugin
-                    contentEditable={
-                      <ContentEditable
-                        autoFocus
-                        className="w-full px-4 py-3 outline-none min-h-[4.5rem] text-base placeholder:text-gray-400"
-                        style={{ minHeight: '4.5rem' }}
-                        onClick={handleTutorialComplete}
-                        onFocus={handleTutorialComplete}
-                        onPaste={handlePaste}
-                      />
-                    }
-                    ErrorBoundary={LexicalErrorBoundary}
+      <div className="space-y-3">
+        <div
+          className={`relative transition-all rounded-xl duration-300 ease-out ${
+            isDragging ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-100' : ''
+          }`}
+        >
+          {isDragging && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50/90 to-blue-50/90 backdrop-blur-md rounded-xl z-20 border-2 border-dashed border-indigo-300">
+              <div className="flex items-center gap-2 text-indigo-700">
+                <Paperclip className="size-5" />
+                <p className="font-medium">Drop files to attach</p>
+              </div>
+              <p className="text-sm text-indigo-500 mt-1">
+                Supports images, documents, and more
+              </p>
+            </div>
+          )}
+          <div className="relative">
+            <div
+              className={`rounded-xl bg-white border-2 shadow-[0_2px_0_#E5E7EB] font-medium transition-all duration-300 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-600 ${
+                isDragging
+                  ? 'border-indigo-200 shadow-[0_4px_12px_rgba(99,102,241,0.15)]'
+                  : 'border-gray-200'
+              }`}
+            >
+              <PlainTextPlugin
+                contentEditable={
+                  <ContentEditable
+                    autoFocus
+                    className="w-full px-4 py-3 outline-none min-h-[4.5rem] text-base placeholder:text-gray-400"
+                    style={{ minHeight: '4.5rem' }}
+                    onPaste={handlePaste}
                   />
-                  <PlaceholderPlugin placeholder="Tweet about..." />
-                  <HistoryPlugin />
-                  <MultipleEditorStorePlugin id="app-sidebar" />
-                </LexicalComposer>
+                }
+                ErrorBoundary={LexicalErrorBoundary}
+              />
+              <PlaceholderPlugin placeholder="Tweet about..." />
+              <HistoryPlugin />
+              <MultipleEditorStorePlugin id="app-sidebar" />
 
-                <div className="flex items-center justify-between px-3 pb-3">
-                  <div className="flex gap-1.5 items-center">
-                    <FileUploadTrigger asChild>
-                      <DuolingoButton type="button" variant="secondary" size="icon">
-                        <Paperclip className="text-stone-600 size-5" />
-                      </DuolingoButton>
-                    </FileUploadTrigger>
+              <div className="flex items-center justify-between px-3 pb-3">
+                <div className="flex gap-1.5 items-center">
+                  <FileUploadTrigger asChild>
+                    <DuolingoButton type="button" variant="secondary" size="icon">
+                      <Paperclip className="text-stone-600 size-5" />
+                    </DuolingoButton>
+                  </FileUploadTrigger>
 
-                    <KnowledgeSelector onSelectDocument={handleAddKnowledgeDoc} />
-                  </div>
+                  <KnowledgeSelector onSelectDocument={handleAddKnowledgeDoc} />
+                </div>
 
+                {disabled ? (
                   <DuolingoButton
-                    // loading={status === 'streaming' || status === 'submitted'}
+                    onClick={onStop}
+                    variant="icon"
+                    size="icon"
+                    aria-label="Stop message"
+                  >
+                    <Square className="size-3 fill-white" />
+                  </DuolingoButton>
+                ) : (
+                  <DuolingoButton
                     disabled={hasUploading}
+                    onClick={handleSubmit}
                     variant="icon"
                     size="icon"
                     aria-label="Send message"
                   >
                     <ArrowUp className="size-5" />
                   </DuolingoButton>
-                </div>
+                )}
               </div>
-            </form>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs z-10">
-            <p className="text-center text-base">👇 Type your tweet idea here👇</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
-  )
-}
-
-export function TweetSuggestionLoader() {
-  return (
-    <div className="w-full h-32">
-      <div className="my-3 h-full rounded-lg bg-white border border-dashed border-stone-200 shadow-sm overflow-hidden">
-        <div className="h-full flex items-center justify-start gap-3 p-2">
-          <div className="relative h-28 w-28 overflow-hidden rounded-md">
-            <img
-              src={getCurrentWorkingCat()}
-              alt="Typing cat"
-              className="scale-[1.3] object-cover object-right"
-            />
-          </div>
-          <div className="flex flex-col">
-            <div className="text-base leading-relaxed">
-              <TextShimmer className=" [--base-gradient-color:#78716c]" duration={0.7}>
-                Ghostwriters at work...
-              </TextShimmer>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function DraftsLoadingState() {
-  return (
-    <div className="w-full h-32">
-      <div className="my-3 h-full rounded-lg bg-white border border-dashed border-stone-200 shadow-sm overflow-hidden">
-        <div className="h-full flex items-center justify-start gap-3 p-2">
-          <div className="relative h-28 w-28 overflow-hidden rounded-md">
-            <img
-              src={getCurrentWorkingCat()}
-              alt="Typing cat"
-              className="scale-[1.3] object-cover object-right"
-            />
-          </div>
-          <div className="flex flex-col">
-            <div className="text-base leading-relaxed">
-              <TextShimmer className=" [--base-gradient-color:#78716c]" duration={0.7}>
-                Cooking up some bangers...
-              </TextShimmer>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function ReadLinkLoader({
-  url,
-  title,
-  status = 'pending',
-}: {
-  url: string
-  title: string
-  status: 'success' | 'pending'
-}) {
-  const { width } = useSidebar()
-  const remToPx = (value: string) => parseFloat(value.replace('rem', '')) * 16
-
-  return (
-    <div className="w-full overflow-hidden">
-      <div className="mb-3 w-full rounded-lg bg-white border border-black border-opacity-10 shadow-sm bg-clip-padding overflow-hidden">
-        <div className="flex flex-col gap-0 px-6 py-3 min-w-0">
-          {status === 'success' ? (
-            <div className="flex mb-1 items-center gap-1.5">
-              <Check className="size-4 text-indigo-600 flex-shrink-0" />
-              <p className="text-sm text-indigo-600">Read</p>
-            </div>
-          ) : (
-            <div className="flex mb-1 items-center gap-1.5">
-              <Eye className="size-4 text-stone-500 flex-shrink-0" />
-              <TextShimmer
-                className="text-sm [--base-gradient-color:#78716c]"
-                duration={0.7}
-              >
-                Reading...
-              </TextShimmer>
-            </div>
-          )}
-
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-base font-medium text-stone-900 hover:underline truncate block"
-            title={title}
-            style={{ maxWidth: remToPx(width) - 128 }}
-          >
-            {title}
-          </a>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-stone-500 hover:underline mt-0.5 truncate block"
-            title={url}
-            style={{ maxWidth: remToPx(width) - 128 }}
-          >
-            {url}
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface TweetCard {
-  src?: string
-  username: string
-  name: string
-  text?: string
-}
-
-const TweetCard = ({ name, username, src, text }: TweetCard) => {
-  return (
-    <div className="w-full">
-      <div className="text-left rounded-lg bg-white border border-dashed border-stone-200 shadow-sm overflow-hidden">
-        <div className="flex items-start gap-3 p-6">
-          <Avatar className="h-10 w-10 rounded-full border border-border/30">
-            <AvatarImage src={src} alt={`@${username}`} />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm/6">
-              {name.slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-semibold">{name}</span>
-              <span className="text-sm/6 text-muted-foreground">@{username}</span>
-            </div>
-            <div className="mt-1 text-base whitespace-pre-line">{text}</div>
           </div>
         </div>
       </div>
@@ -486,11 +246,59 @@ const TweetCard = ({ name, username, src, text }: TweetCard) => {
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   const { toggleSidebar } = useSidebar()
-  const { messages, status, startNewChat } = useChat()
-  const { addKnowledgeAttachment, attachments, removeAttachment } = useAttachments()
-  const editor = useEditor('app-sidebar')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [editor] = useLexicalComposerContext()
 
-  const queryClient = useQueryClient()
+  const { messages, status, sendMessage, startNewChat, id, stop } = useChatContext()
+  const { attachments, removeAttachment, addChatAttachment, addKnowledgeAttachment } =
+    useAttachments()
+
+  console.log({ attachments })
+
+  const updateURL = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(searchParams)
+      params.set(key, value)
+      router.replace(`${window.location.pathname}?${params.toString()}`, {
+        scroll: false,
+      })
+    },
+    [searchParams, router],
+  )
+
+  const handleSubmit = useCallback(
+    async (text: string, editorContent: string) => {
+      if (!text.trim()) return
+
+      if (!Boolean(searchParams.get('chatId'))) {
+        updateURL('chatId', id)
+      }
+
+      sendMessage({ text, metadata: { attachments, editorContent, userMessage: text } })
+
+      // Batch attachment removals to prevent multiple rapid state updates
+      if (attachments.length > 0) {
+        requestAnimationFrame(() => {
+          attachments.forEach((a) => {
+            removeAttachment({ id: a.id })
+          })
+        })
+      }
+    },
+    [searchParams, updateURL, id, sendMessage, attachments, removeAttachment],
+  )
+
+  const handleNewChat = useCallback(() => {
+    startNewChat()
+  }, [startNewChat])
+
+  const handleFilesAdded = useCallback(
+    (files: File[]) => {
+      files.forEach(addChatAttachment)
+    },
+    [addChatAttachment],
+  )
 
   const { data: knowledgeData } = useQuery({
     queryKey: ['knowledge-documents'],
@@ -504,88 +312,6 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
   const exampleDocuments = knowledgeData?.documents?.filter((doc) => doc.isExample) || []
 
-  const renderPart = (
-    part: UIMessage['parts'][number],
-    index: number,
-    empty?: boolean,
-  ): React.ReactNode => {
-    switch (part.type) {
-      case 'text':
-        if (Array.isArray(part.text)) {
-          return (
-            <div key={index} className="space-y-2">
-              {part.text.map((nestedPart: any, nestedIndex: number) =>
-                renderPart(nestedPart, nestedIndex),
-              )}
-            </div>
-          )
-        }
-        return (
-          <MessageContent
-            markdown
-            key={index}
-            className="text-base py-0.5 leading-7 text-stone-800"
-          >
-            {part.text}
-          </MessageContent>
-        )
-      // case 'step-start':
-      //   return index > 0 ? <Separator key={index} className="!my-4" /> : null
-      case 'tool-invocation':
-        switch (part.toolInvocation.state) {
-          case 'partial-call':
-          case 'call':
-            if (part.toolInvocation.toolName === 'read_website_content') {
-              return (
-                <ReadLinkLoader
-                  status="pending"
-                  title="Reading link..."
-                  key={index}
-                  url={part.toolInvocation.args?.website_url}
-                />
-              )
-            } else if (part.toolInvocation.toolName === 'three_drafts') {
-              return <DraftsLoadingState key={index} />
-            } else if (part.toolInvocation.toolName === 'edit_tweet') {
-              return <TweetSuggestionLoader key={index} />
-            }
-          case 'result':
-            if (part.toolInvocation.toolName === 'read_website_content') {
-              return (
-                <ReadLinkLoader
-                  status="success"
-                  key={index}
-                  // @ts-ignore
-                  title={part.toolInvocation.result.title}
-                  url={part.toolInvocation.args?.website_url}
-                />
-              )
-            } else if (part.toolInvocation.toolName === 'three_drafts') {
-              return (
-                <div key={index} className="w-full">
-                  <p className="text-base text-emerald-600 font-medium">
-                    Ready! I've prepared 3 drafts for you. Choose your favorite below.
-                  </p>
-                </div>
-              )
-            } else if (part.toolInvocation.toolName === 'edit_tweet') {
-              return (
-                <div key={index} className="w-full">
-                  <p className="text-base text-emerald-600 font-medium">
-                    Ready! I've edited your tweet.
-                  </p>
-                </div>
-              )
-            }
-
-          default:
-            return null
-        }
-      default:
-        return null
-    }
-  }
-
   return (
     <>
       {children}
@@ -596,7 +322,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
             <p className="text-sm/6 font-medium">Assistant</p>
             <div className="flex gap-2">
               <DuolingoButton
-                onClick={() => startNewChat()}
+                onClick={handleNewChat}
                 size="sm"
                 variant="secondary"
                 title="New Chat"
@@ -617,209 +343,132 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </SidebarHeader>
-        <SidebarContent className="h-full p-4">
-          <SidebarGroup className="h-full">
-            <div className="flex flex-col-reverse space-y-reverse space-y-3 h-full overflow-y-auto">
-              {messages.length > 0 ? (
-                (() => {
-                  const reversed = [...messages].reverse()
-                  let lastUserIdx = reversed.findIndex((m) => m.role === 'user')
-                  if (lastUserIdx === -1) lastUserIdx = 0
-                  const hasAssistantAfterUser = reversed
-                    .slice(0, lastUserIdx)
-                    .some((m) => m.role === 'assistant')
-
-                  // Check if there's an active tool call that should take precedence over typing indicator
-                  const hasActiveToolCall = reversed.some((m) =>
-                    m.parts.some(
-                      (part) =>
-                        part.type === 'tool-invocation' &&
-                        (part.toolInvocation.state === 'partial-call' ||
-                          part.toolInvocation.state === 'call'),
-                    ),
-                  )
-
-                  const showTyping =
-                    status === 'submitted' && !hasAssistantAfterUser && !hasActiveToolCall
-                  const renderList = [...reversed]
-                  if (showTyping) {
-                    renderList.splice(lastUserIdx, 0, {
-                      id: '__typing__',
-                      role: 'assistant',
-                      parts: [],
-                      // @ts-expect-error
-                      typingLoader: true,
+        <SidebarContent className="relative h-full py-0 bg-gray-50 bg-opacity-25">
+          {messages.length === 0 ? (
+            <div className="absolute z-10 p-3 pb-5 inset-x-0 bottom-0">
+              <p className="text-sm text-gray-500 mb-2">Examples</p>
+              <div className="space-y-2">
+                <PromptSuggestion
+                  onClick={() => {
+                    attachments.forEach((attachment) => {
+                      removeAttachment({ id: attachment.id })
                     })
-                  }
 
-                  const lastCallId = renderList.find((m) => {
-                    return m.parts.some(
-                      (part) =>
-                        part.type === 'tool-invocation' &&
-                        part.toolInvocation.toolName === 'edit_tweet',
+                    const blogDoc = exampleDocuments.find(
+                      (doc) => doc.title?.includes('Zod') || doc.type === 'url',
                     )
-                  })
 
-                  return renderList.map((message, i) => {
-                    // @ts-expect-error unknown property
-                    if (message.typingLoader) {
-                      return (
-                        <Message key="__typing__">
-                          <div className="flex items-start gap-3">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-2 mt-2">
-                                <Loader variant="typing" size="md" />
-                                <p>Thinking</p>
-                              </div>
-                            </div>
-                          </div>
-                        </Message>
+                    editor.update(() => {
+                      const root = $getRoot()
+                      const paragraph = $createParagraphNode()
+                      const text = $createTextNode(
+                        'Suggest a tweet about the Zod 4.0 release: https://zod.dev/v4',
                       )
-                    }
+                      root.clear()
+                      paragraph.append(text)
+                      paragraph.selectEnd()
+                      root.append(paragraph)
+                    })
 
-                    return (
-                      <div key={i} className="flex flex-col gap-2">
-                        <div className="flex gap-2 items-center">
-                          {message.metadata?.attachments?.map((attachment) => {
-                            return (
-                              <AttachmentItem
-                                key={attachment.id}
-                                attachment={attachment}
-                              />
-                            )
-                          })}
-                        </div>
+                    editor.focus()
+                  }}
+                >
+                  Suggest a tweet about the Zod 4.0 release
+                </PromptSuggestion>
 
-                        <Message
-                          className={` ${
-                            message.role === 'assistant' ? '' : 'bg-stone-200 w-fit pr-6'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {message.role === 'user' && (
-                              <AccountAvatar className="size-7" />
-                              // <Avatar className="size-7 flex items-center justify-center bg-stone-800 rounded-full flex-shrink-0">
-                              //   <p className="text-white text-[12px] font-medium">
-                              //     {account?.name.slice(0, 1).toUpperCase()}
-                              //   </p>
-                              // </Avatar>
-                            )}
-                            <div className="space-y-2 flex-1">
-                              {message.parts.map((part, index) => {
-                                const empty = !Boolean(message.id === lastCallId?.id)
-                                return renderPart(part, index, empty)
-                              })}
-                            </div>
-                          </div>
-                        </Message>
-                      </div>
-                    )
-                  })
-                })()
-              ) : (
-                <div className="flex h-full flex-1 flex-col items-center justify-center text-center p-8">
-                  <p className="text-2xl text-stone-800 font-medium">
-                    Let's write a great tweet ✏️
-                  </p>
-                  <p className="text-sm/6 text-muted-foreground mt-1">
-                    Paste a link, image, or rough idea
-                  </p>
+                <PromptSuggestion
+                  onClick={() => {
+                    attachments.forEach((attachment) => {
+                      removeAttachment({ id: attachment.id })
+                    })
 
-                  <div className="w-2/3 mt-8 mb-4 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-stone-200"></div>
-                    <p className="text-xs text-stone-500">Click to select example 👇</p>
-                    <div className="h-px flex-1 bg-stone-200"></div>
-                  </div>
+                    editor.update(() => {
+                      const root = $getRoot()
+                      const paragraph = $createParagraphNode()
+                      const text = $createTextNode(
+                        'Draft 2 tweets about imposter syndrome in tech',
+                      )
+                      root.clear()
+                      paragraph.append(text)
+                      paragraph.selectEnd()
+                      root.append(paragraph)
+                    })
 
-                  <div className="grid gap-2 w-full max-w-lg">
-                    <DuolingoButton
-                      className="w-full"
-                      variant="dashedOutline"
-                      onClick={() => {
-                        // Clear existing attachments
-                        attachments.forEach((attachment) => {
-                          removeAttachment({ id: attachment.id })
-                        })
+                    editor.focus()
+                  }}
+                >
+                  Draft 2 tweets about imposter syndrome in tech
+                </PromptSuggestion>
 
-                        const blogDoc = exampleDocuments.find(
-                          (doc) => doc.title?.includes('Zod') || doc.type === 'url',
-                        )
+                <PromptSuggestion
+                  onClick={() => {
+                    attachments.forEach((attachment) => {
+                      removeAttachment({ id: attachment.id })
+                    })
 
-                        if (blogDoc) {
-                          addKnowledgeAttachment(blogDoc)
+                    editor.update(() => {
+                      const root = $getRoot()
+                      const paragraph = $createParagraphNode()
+                      const text = $createTextNode(
+                        'Draft a tweet about 5 productivity tips for remote devs',
+                      )
+                      root.clear()
+                      paragraph.append(text)
+                      paragraph.selectEnd()
+                      root.append(paragraph)
+                    })
 
-                          editor?.update(() => {
-                            const root = $getRoot()
-                            const p = $createParagraphNode()
-                            p.append($createTextNode('write a tweet about this article'))
-                            root.clear()
-                            root.append(p)
-                            p.select()
-                          })
-                          editor?.focus()
-                        } else {
-                          toast.error(
-                            'Example blog article not found. Try adding your own content!',
-                          )
-                        }
-                      }}
-                    >
-                      <div className="flex flex-wrap justify-center items-center gap-1">
-                        <span>tweet about</span>
-                        <span className="text-rose-950 bg-rose-50 rounded-sm px-1 py-0.5">
-                          🧠 example-blog-article
-                        </span>
-                      </div>
-                    </DuolingoButton>
-                    <DuolingoButton
-                      className="w-full"
-                      variant="dashedOutline"
-                      onClick={() => {
-                        // Clear existing attachments
-                        attachments.forEach((attachment) => {
-                          removeAttachment({ id: attachment.id })
-                        })
+                    editor.focus()
+                  }}
+                >
+                  Draft a tweet about 5 productivity tips for remote devs
+                </PromptSuggestion>
 
-                        const imageDoc = exampleDocuments.find(
-                          (doc) => doc.title?.includes('React') || doc.type === 'image',
-                        )
+                <PromptSuggestion
+                  onClick={() => {
+                    attachments.forEach((attachment) => {
+                      removeAttachment({ id: attachment.id })
+                    })
 
-                        if (imageDoc) {
-                          addKnowledgeAttachment(imageDoc)
+                    editor.update(() => {
+                      const root = $getRoot()
+                      const paragraph = $createParagraphNode()
+                      const text = $createTextNode(
+                        'Tweet about a complex programming concept in simple terms',
+                      )
+                      root.clear()
+                      paragraph.append(text)
+                      paragraph.selectEnd()
+                      root.append(paragraph)
+                    })
 
-                          editor?.update(() => {
-                            const root = $getRoot()
-                            const p = $createParagraphNode()
-                            p.append($createTextNode('tweet i just learned about this'))
-                            root.clear()
-                            root.append(p)
-                            p.select()
-                          })
-                          editor?.focus()
-                        } else {
-                          toast.error(
-                            'Example code image not found. Try uploading your own image!',
-                          )
-                        }
-                      }}
-                    >
-                      <div className="flex flex-wrap justify-center items-center gap-1">
-                        <span>tweet i just learned about</span>
-                        <span className="text-rose-950 bg-rose-50 rounded-sm px-1 py-0.5">
-                          🧠 example-code-image
-                        </span>
-                      </div>
-                    </DuolingoButton>
-                  </div>
-                </div>
-              )}
+                    editor.focus()
+                  }}
+                >
+                  Tweet about a complex programming concept in simple terms
+                </PromptSuggestion>
+              </div>
+            </div>
+          ) : null}
+
+          <SidebarGroup className="h-full py-0 px-0">
+            <div className="h-full space-y-6">
+              <Messages status={status} messages={messages} />
             </div>
           </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter className="relative p-3 border-t border-t-gray-300 bg-gray-100">
-          <Improvements />
-          <ChatInput />
+          {/* <Improvements /> */}
+
+          <FileUpload onFilesAdded={handleFilesAdded}>
+            <ChatInput
+              onStop={stop}
+              onSubmit={handleSubmit}
+              handleFilesAdded={handleFilesAdded}
+              disabled={status === 'submitted' || status === 'streaming'}
+            />
+          </FileUpload>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>

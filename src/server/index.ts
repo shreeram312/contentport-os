@@ -33,7 +33,6 @@ const api = j
  */
 const appRouter = j.mergeRouters(api, {
   file: dynamic(() => import('./routers/file-router')),
-  voice: dynamic(() => import('./routers/voice-router')),
   tweet: dynamic(() => import('./routers/tweet-router')),
   knowledge: dynamic(() => import('./routers/knowledge-router')),
   chat: dynamic(() => import('./routers/chat/chat-router')),

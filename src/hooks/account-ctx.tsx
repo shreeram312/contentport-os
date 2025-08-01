@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { Icons } from '@/components/icons'
 import { Account } from '@/server/routers/settings-router'
+import { motion } from 'framer-motion'
 
 // export interface ConnectedAccount {
 //   name: string
@@ -68,15 +69,63 @@ export function AccountAvatar({ className }: { className?: string }) {
   )
 }
 
-export function AccountName({ className }: { className?: string }) {
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      duration: 0.5,
+      bounce: 0.2,
+    },
+  },
+}
+
+export function AccountName({
+  className,
+  animate = false,
+}: {
+  className?: string
+  animate?: boolean
+}) {
   const { account, isLoading } = useAccount()
+
   if (isLoading || !account) {
     return <Skeleton className={cn('h-4 w-24 rounded', className)} />
   }
+
+  const renderBadge = () => {
+    if (animate)
+      return (
+        <motion.div
+          variants={isLoading ? itemVariants : undefined}
+          initial={isLoading ? { scale: 0, rotate: -180 } : false}
+          animate={
+            isLoading
+              ? {
+                  scale: 1,
+                  rotate: 0,
+                  transition: {
+                    type: 'spring',
+                    duration: 0.8,
+                    bounce: 0.4,
+                    delay: 0.5,
+                  },
+                }
+              : false
+          }
+        >
+          <Icons.verificationBadge className="size-4" />
+        </motion.div>
+      )
+    else return <Icons.verificationBadge className="size-4" />
+  }
+
   return (
     <span className={cn('font-semibold inline-flex items-center gap-1', className)}>
       {account.name}
-      {account.verified && <Icons.verificationBadge className="h-4 w-4" />}
+      {account.verified && renderBadge()}
     </span>
   )
 }

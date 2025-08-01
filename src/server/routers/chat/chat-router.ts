@@ -1,31 +1,27 @@
 import { assistantPrompt } from '@/lib/prompt-utils'
 import { DiffWithReplacement } from '@/lib/utils'
-import { tweet as tweetSchema } from '@/lib/validators'
-import { TestUIMessage } from '@/types/message'
-import { openai } from '@ai-sdk/openai'
 import {
-  appendResponseMessages,
+  convertToModelMessages,
   CoreMessage,
-  createDataStreamResponse,
-  smoothStream,
+  createIdGenerator,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  stepCountIs,
   streamText,
-  UIMessage,
+  UIMessage
 } from 'ai'
 import { format } from 'date-fns'
 import 'diff-match-patch-line-and-word'
-import { nanoid } from 'nanoid'
+import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { redis } from '../../../lib/redis'
 import { j, privateProcedure } from '../../jstack'
-import { create_edit_tweet } from './edit-tweet'
 import { create_read_website_content } from './read-website-content'
 import { parseAttachments, PromptBuilder } from './utils'
-import { Ratelimit } from '@upstash/ratelimit'
-import { HTTPException } from 'hono/http-exception'
-import { create_three_drafts } from './create-three-drafts'
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { getAccount } from '../utils/get-account'
+import { createTweetTool } from './tools/create-tweet-tool'
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -87,6 +83,39 @@ const chatMessageSchema = z.object({
   metadata: messageMetadataSchema.optional(),
 })
 
+export type Metadata = {
+  userMessage: string
+  attachments: Array<TAttachment>
+  editorContent: string
+}
+
+export type MyUIMessage = UIMessage<
+  Metadata,
+  {
+    'main-response': {
+      text: string
+      status: 'streaming' | 'complete'
+    }
+    'tool-output': {
+      text: string
+      status: 'processing' | 'streaming' | 'complete'
+    }
+    writeTweet: {
+      status: 'processing'
+    }
+  },
+  {
+    readWebsiteContent: {
+      input: { website_url: string }
+      output: {
+        url: string
+        title: string
+        content: string
+      }
+    }
+  }
+>
+
 // ==================== Constants ====================
 
 const MESSAGE_ID_PREFIXES = {
@@ -101,7 +130,7 @@ function filterVisibleMessages(messages: UIMessage[]): UIMessage[] {
     (msg) =>
       !msg.id.startsWith(MESSAGE_ID_PREFIXES.document) &&
       !msg.id.startsWith(MESSAGE_ID_PREFIXES.meta) &&
-      !msg.id.startsWith(MESSAGE_ID_PREFIXES.system)
+      !msg.id.startsWith(MESSAGE_ID_PREFIXES.system),
   )
 }
 
@@ -114,7 +143,7 @@ async function incrementChatCount(userEmail: string): Promise<void> {
 // ==================== Route Handlers ====================
 
 export const chatRouter = j.router({
-  get_chat_messages: privateProcedure
+  get_message_history: privateProcedure
     .input(z.object({ chatId: z.string().nullable() }))
     .get(async ({ c, input, ctx }) => {
       const { chatId } = input
@@ -124,233 +153,135 @@ export const chatRouter = j.router({
         return c.superjson({ messages: [] })
       }
 
-      const chat = await redis.json.get<{ messages: UIMessage[] }>(
-        `chat:${user.email}:${chatId}`
-      )
+      const messages = await redis.get<MyUIMessage[]>(`chat:history:${chatId}`)
 
-      const visibleMessages = chat ? filterVisibleMessages(chat.messages) : []
+      if (!messages) {
+        return c.superjson({ messages: [] })
+      }
 
-      return c.superjson({ messages: visibleMessages })
+      // const chat = await redis.json.get<{ messages: UIMessage[] }>(
+      //   `chat:${user.email}:${chatId}`,
+      // )
+
+      // const visibleMessages = chat ? filterVisibleMessages(chat.messages) : []
+
+      return c.superjson({ messages })
     }),
 
   conversation: privateProcedure.post(({ c }) => {
     return c.json({ id: crypto.randomUUID() })
   }),
 
-  generate: privateProcedure
+  chat: privateProcedure
     .input(
       z.object({
-        message: chatMessageSchema,
-        tweet: tweetSchema,
-      })
+        message: z.any(),
+        id: z.string(),
+      }),
     )
-    .post(async ({ input, ctx }) => {
+    .post(async ({ c, ctx, input }) => {
       const { user } = ctx
+      const { id, message } = input as { message: MyUIMessage; id: string }
 
-      const limiter =
-        user.plan === 'pro'
-          ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '4h') })
-          : new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(5, '1d') })
-
-      const chatId = input.message.chatId
-      const attachments = input.message.metadata?.attachments
-      const { tweet } = input
-
-      const account = await getAccount({ email: user.email })
+      const [account, history, parsedAttachments] = await Promise.all([
+        getAccount({ email: user.email }),
+        redis.get<MyUIMessage[]>(`chat:history:${id}`),
+        parseAttachments({
+          attachments: message.metadata?.attachments,
+        }),
+      ])
 
       if (!account) {
         throw new HTTPException(412, { message: 'No connected account' })
       }
 
-      if (process.env.NODE_ENV === 'production') {
-        const { success } = await limiter.limit(user.email)
-
-        if (!success) {
-          if (user.plan === 'pro') {
-            throw new HTTPException(429, {
-              message: "You've reached a rate limit, please try again soon.",
-            })
-          } else {
-            throw new HTTPException(429, {
-              message: 'Daily chat limit reached.',
-            })
-          }
-        }
-      }
-
-      const existingChat = await redis.json.get<{ messages: TestUIMessage[] }>(
-        `chat:${user.email}:${chatId}`
-      )
-
-      const { files, images, links } = await parseAttachments({ attachments })
-
-      /**
-       * conversation message construction
-       */
-      const isConversationEmpty = !Boolean(existingChat)
-
-      const systemMessage: TestUIMessage = {
-        id: 'system-prompt',
-        content: assistantPrompt({ tweet }),
-        role: 'system',
-      }
-
-      const editorState = new PromptBuilder()
-        .add(
-          `<important_info>This is a system attachment to the user request. The purpose of this attachment is to keep you informed about the user's latest tweet editor state at all times. It might be empty or already contain text.</important_info>`
-        )
-        .add(`<current_tweet>${tweet.content}</current_tweet>`)
-
-      if (isConversationEmpty) {
-        editorState.add(
-          `This is the first message in your conversation. Therefore, only for the first message, create three drafts. The user can choose the draft they like most.`
-        )
-      }
-
-      const editorStateMessage: TestUIMessage = {
-        role: 'user',
-        id: `meta:editor-state:${nanoid()}`,
-        content: `<system_attachment>${editorState.build()}</system_attachment>`,
-      }
+      const { links, attachments } = parsedAttachments
 
       const content = new PromptBuilder()
+      const userContent = message.parts.reduce(
+        (acc, curr) => (curr.type === 'text' ? acc + curr.text : ''),
+        '',
+      )
 
-      content.add(input.message.content)
+      content.add(`<user_message>${userContent}</user_message>`)
 
       if (Boolean(links.length)) {
-        content.add('Please read the following links:')
+        const link = new PromptBuilder()
+        links.forEach((l) => link.add(`<link>${l?.link}</link>`))
 
-        links.forEach(({ link }) => {
-          content.add(`<link>${link}</link>`)
-        })
+        content.add(
+          `<attached_links note="Please read these.">${link.build()}</attached_links>`,
+        )
       }
 
-      const userMessage: TestUIMessage = {
-        id: nanoid(),
-        role: input.message.role,
-        metadata: input.message.metadata,
-        content: [
-          {
-            type: 'text',
-            text: content.build(),
-          },
-          ...files,
-          ...images,
+      if (Boolean(message.metadata?.editorContent)) {
+        content.add(`<tweet_draft>${message.metadata?.editorContent}</tweet_draft>`)
+      }
+
+      const userMessage: MyUIMessage = {
+        ...message,
+        parts: [
+          { type: 'text', text: `<message>${content.build()}</message>` },
+          ...attachments,
         ],
       }
 
-      let messages: TestUIMessage[] = [
-        ...(isConversationEmpty ? [systemMessage] : []),
-        ...(existingChat?.messages ?? []),
-        editorStateMessage,
-        userMessage,
-      ]
+      const messages = [...(history ?? []), userMessage] as MyUIMessage[]
 
-      /**
-       * tool message construction
-       */
-      const edit_tweet = create_edit_tweet({
-        chatId: chatId,
-        userMessage,
-        tweet,
-        isDraftMode: isConversationEmpty,
-        redisKeys: {
-          chat: `chat:tool:${user.email}:${chatId}`,
-          account: `active-account:${user.email}`,
-          style: `style:${user.email}:${account.id}`,
+      console.log(JSON.stringify(messages, null, 2))
+
+      const stream = createUIMessageStream<MyUIMessage>({
+        originalMessages: messages,
+        generateId: createIdGenerator({
+          prefix: 'msg',
+          size: 16,
+        }),
+        onFinish: async ({ messages }) => {
+          await redis.set(`chat:history:${id}`, messages)
         },
-      })
+        onError(error) {
+          console.log('❌❌❌ ERROR:', JSON.stringify(error, null, 2))
 
-      /**
-       * draft tool construction
-       */
-      const three_drafts = create_three_drafts({
-        userEmail: user.email,
-        redisKeys: {
-          chat: `chat:tool:${user.email}:${chatId}`,
-          account: `active-account:${user.email}`,
-          style: `style:${user.email}:${account.id}`,
+          throw new HTTPException(500, {
+            message: error instanceof Error ? error.message : 'Something went wrong.',
+          })
         },
-        chatId,
-        userMessage,
-        tweet,
-      })
-
-      const read_website_content = create_read_website_content({ chatId: chatId })
-
-      const chatModel = openrouter.chat('anthropic/claude-sonnet-4', {
-        reasoning: { effort: 'low' },
-        models: ['google/gemini-2.5-pro'],
-      })
-
-      return createDataStreamResponse({
-        execute: (stream) => {
-          const result = streamText({
-            model: chatModel,
-            system: assistantPrompt({ tweet }),
-            tools: { read_website_content, edit_tweet, three_drafts },
-            toolChoice: 'auto',
-            maxSteps: 6,
-            experimental_transform: smoothStream({ delayInMs: 20 }),
-            messages: messages as CoreMessage[],
-            onError: ({ error }) => {
-              console.error(error)
-
-              throw new HTTPException(500, {
-                message: 'Something went wrong, please try again.',
-              })
-            },
-            onStepFinish: ({ toolResults }) => {
-              toolResults.forEach((result) => {
-                if (result.toolName === 'edit_tweet') {
-                  if ('result' in result && result.result) {
-                    stream.writeData({ hook: 'onTweetResult', data: result.result })
-                  }
-                }
-
-                if (result.toolName === 'three_drafts') {
-                  if ('result' in result && result.result) {
-                    stream.writeData({ hook: 'onThreeDrafts', data: result.result })
-                  }
-                }
-              })
-            },
-            onFinish: async ({ response }) => {
-              await redis.json.set(`chat:${user.email}:${chatId}`, '$', {
-                messages: appendResponseMessages({
-                  messages: messages as UIMessage[],
-                  responseMessages: response.messages,
-                }),
-              })
-
-              const hasCalledEditTweet = response.messages.some(
-                (msg) =>
-                  Array.isArray(msg.content) &&
-                  msg.content.some(
-                    (obj) => obj.type === 'tool-call' && obj.toolName === 'edit_tweet'
-                  )
-              )
-
-              if (!hasCalledEditTweet) {
-                const pipeline = redis.pipeline()
-
-                const attachments = [...files, images]
-
-                if (Boolean(attachments.length)) {
-                  attachments.forEach((attachment) => {
-                    pipeline.lpush(`unseen-attachments:${chatId}`, attachment)
-                  })
-                }
-
-                await pipeline.exec()
-              }
-
-              await incrementChatCount(user.email)
+        execute: async ({ writer }) => {
+          // tools
+          const writeTweet = createTweetTool({
+            writer,
+            ctx: {
+              editorContent: message.metadata?.editorContent ?? '',
+              instructions: userContent,
+              messages,
+              userContent,
+              attachments: { attachments, links },
+              redisKeys: {
+                style: `style:${user.email}:${account.id}`,
+                account: `active-account:${user.email}`,
+                websiteContent: `website-contents:${id}`,
+              },
             },
           })
 
-          result.mergeIntoDataStream(stream)
+          const readWebsiteContent = create_read_website_content({ chatId: id })
+
+          const result = streamText({
+            model: openrouter.chat('openai/gpt-4.1', {
+              // model: openrouter.chat('openrouter/horizon-alpha', {
+              models: ['openai/gpt-4o'],
+              reasoning: { enabled: false, effort: 'low' },
+            }),
+            system: assistantPrompt({ editorContent: message.metadata?.editorContent }),
+            messages: convertToModelMessages(messages),
+            tools: { writeTweet, readWebsiteContent },
+            stopWhen: stepCountIs(3),
+          })
+
+          writer.merge(result.toUIMessageStream())
         },
       })
+
+      return createUIMessageStreamResponse({ stream })
     }),
 })

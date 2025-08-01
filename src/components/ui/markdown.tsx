@@ -1,10 +1,10 @@
-import { cn } from "@/lib/utils"
-import { marked } from "marked"
-import { memo, useId, useMemo } from "react"
-import ReactMarkdown, { Components } from "react-markdown"
-import remarkBreaks from "remark-breaks"
-import remarkGfm from "remark-gfm"
-import { CodeBlock, CodeBlockCode } from "./code-block"
+import { cn } from '@/lib/utils'
+import { marked } from 'marked'
+import { memo, useId, useMemo } from 'react'
+import ReactMarkdown, { Components } from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
+import remarkGfm from 'remark-gfm'
+import { CodeBlock, CodeBlockCode } from './code-block'
 
 export type MarkdownProps = {
   children: string
@@ -14,7 +14,7 @@ export type MarkdownProps = {
 }
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
-  if (markdown && typeof markdown === "string") {
+  if (markdown && typeof markdown === 'string') {
     const tokens = marked.lexer(markdown)
     return tokens.map((token) => token.raw)
   } else {
@@ -23,42 +23,12 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
 }
 
 function extractLanguage(className?: string): string {
-  if (!className) return "plaintext"
+  if (!className) return 'plaintext'
   const match = className.match(/language-(\w+)/)
-  return match && match[1] ? match[1] : "plaintext"
+  return match && match[1] ? match[1] : 'plaintext'
 }
 
 const INITIAL_COMPONENTS: Partial<Components> = {
-  code: function CodeComponent({ className, children, ...props }) {
-    const isInline =
-      !props.node?.position?.start.line ||
-      props.node?.position?.start.line === props.node?.position?.end.line
-
-    if (isInline) {
-      return (
-        <span
-          className={cn(
-            "bg-primary-foreground rounded-sm px-1 font-mono text-sm",
-            className
-          )}
-          {...props}
-        >
-          {children}
-        </span>
-      )
-    }
-
-    const language = extractLanguage(className)
-
-    return (
-      <CodeBlock className={className}>
-        <CodeBlockCode code={children as string} language={language} />
-      </CodeBlock>
-    )
-  },
-  pre: function PreComponent({ children }) {
-    return <>{children}</>
-  },
   ul: function UlComponent({ children, ...props }) {
     return (
       <ul className="list-disc pl-6 space-y-1" {...props}>
@@ -84,7 +54,7 @@ const INITIAL_COMPONENTS: Partial<Components> = {
     return (
       <a
         href={href}
-        className="text-primary !break-all underline underline-offset-2 hover:text-primary/80 transition-colors"
+        className="break-all underline underline-offset-2 transition-colors"
         target="_blank"
         rel="noopener noreferrer"
         {...props}
@@ -93,6 +63,7 @@ const INITIAL_COMPONENTS: Partial<Components> = {
       </a>
     )
   },
+  br: () => <br />,
 }
 
 const MemoizedMarkdownBlock = memo(
@@ -104,20 +75,17 @@ const MemoizedMarkdownBlock = memo(
     components?: Partial<Components>
   }) {
     return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        components={components}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>
     )
   },
   function propsAreEqual(prevProps, nextProps) {
     return prevProps.content === nextProps.content
-  }
+  },
 )
 
-MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock"
+MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock'
 
 function MarkdownComponent({
   children,
@@ -143,6 +111,6 @@ function MarkdownComponent({
 }
 
 const Markdown = memo(MarkdownComponent)
-Markdown.displayName = "Markdown"
+Markdown.displayName = 'Markdown'
 
 export { Markdown }

@@ -1,15 +1,9 @@
-"use client"
+'use client'
 
-import { cn } from "@/lib/utils"
-import {
-  Children,
-  cloneElement,
-  createContext,
-  useContext,
-  ReactNode,
-} from "react"
-import { useDropzone, Accept } from "react-dropzone"
-import toast from "react-hot-toast"
+import { cn } from '@/lib/utils'
+import { Children, cloneElement, createContext, useContext, ReactNode } from 'react'
+import { useDropzone, Accept } from 'react-dropzone'
+import toast from 'react-hot-toast'
 
 type FileUploadContextValue = {
   isDragging: boolean
@@ -17,16 +11,19 @@ type FileUploadContextValue = {
   multiple?: boolean
 }
 
-const FileUploadContext = createContext<FileUploadContextValue | null>(null)
+const FileUploadContext = createContext<FileUploadContextValue>({
+  isDragging: false,
+  open: () => {},
+})
 
 const ACCEPTED_FILE_TYPES: Accept = {
-  "image/jpeg": [],
-  "image/png": [],
-  "image/svg+xml": [],
-  "image/webp": [],
-  "text/plain": [],
-  "application/pdf": [],
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [],
+  'image/jpeg': [],
+  'image/png': [],
+  'image/svg+xml': [],
+  'image/webp': [],
+  'text/plain': [],
+  'application/pdf': [],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [],
 }
 
 export type FileUploadProps = {
@@ -36,17 +33,13 @@ export type FileUploadProps = {
   accept?: string
 }
 
-function FileUpload({
-  onFilesAdded,
-  children,
-  multiple = true,
-}: FileUploadProps) {
+function FileUpload({ onFilesAdded, children, multiple = true }: FileUploadProps) {
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: (acceptedFiles, fileRejections) => {
       if (fileRejections.length > 0) {
         const unsupportedFiles = fileRejections.map(({ file }) => file.name)
         toast.error(
-          `Unsupported file type${fileRejections.length > 1 ? "s" : ""}: ${unsupportedFiles.join(", ")}. Only image and text files are allowed.`
+          `Unsupported file type${fileRejections.length > 1 ? 's' : ''}: ${unsupportedFiles.join(', ')}. Only image and text files are allowed.`,
         )
         return
       }
@@ -62,9 +55,7 @@ function FileUpload({
   })
 
   return (
-    <FileUploadContext.Provider
-      value={{ isDragging: isDragActive, open, multiple }}
-    >
+    <FileUploadContext.Provider value={{ isDragging: isDragActive, open, multiple }}>
       <div {...getRootProps()}>
         <input {...getInputProps()} />
         {children}
@@ -73,10 +64,9 @@ function FileUpload({
   )
 }
 
-export type FileUploadTriggerProps =
-  React.ComponentPropsWithoutRef<"button"> & {
-    asChild?: boolean
-  }
+export type FileUploadTriggerProps = React.ComponentPropsWithoutRef<'button'> & {
+  asChild?: boolean
+}
 
 function FileUploadTrigger({
   asChild = false,
@@ -94,7 +84,7 @@ function FileUploadTrigger({
     >
     return cloneElement(child, {
       ...props,
-      role: "button",
+      role: 'button',
       className: cn(className, child.props.className),
       onClick: (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -127,9 +117,9 @@ function FileUploadContent({ className, ...props }: FileUploadContentProps) {
   return context?.isDragging ? (
     <div
       className={cn(
-        "bg-background/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm",
-        "animate-in fade-in-0 slide-in-from-bottom-10 zoom-in-90 duration-150",
-        className
+        'bg-background/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm',
+        'animate-in fade-in-0 slide-in-from-bottom-10 zoom-in-90 duration-150',
+        className,
       )}
       {...props}
     />

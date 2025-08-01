@@ -140,7 +140,7 @@ function ImageAttachment({ attachment, onRemove, className }: ImageReferenceProp
     queryFn: async () => {
       const res = await client.knowledge.getDocument.$get({ id: attachment.id })
       const { document } = await res.json()
-      const url = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.amazonaws.com/${document.s3Key}`
+      const url = `https://dtvhue6he2eeq.cloudfront.net/${document.s3Key}`
 
       return { url }
     },
@@ -156,7 +156,7 @@ function ImageAttachment({ attachment, onRemove, className }: ImageReferenceProp
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 bg-stone-200 rounded-lg size-20 relative',
+        'flex flex-col gap-2 bg-stone-200 rounded-lg size-32 relative',
         className,
       )}
     >
@@ -165,7 +165,7 @@ function ImageAttachment({ attachment, onRemove, className }: ImageReferenceProp
           <DialogTrigger asChild>
             <img
               src={'localUrl' in attachment ? attachment.localUrl : data?.url}
-              className="size-20 object-cover object-center rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+              className="size-32 object-cover object-center rounded-md cursor-pointer hover:opacity-90 transition-opacity"
             />
           </DialogTrigger>
           <DialogContent

@@ -45,6 +45,12 @@ export const auth = betterAuth({
       hadTrial: { type: 'boolean', defaultValue: false, required: true },
     },
   },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+    },
+  },
   database,
   socialProviders: {
     google: {

@@ -6,8 +6,6 @@ import { Suspense } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { Databuddy, track } from '@databuddy/sdk'
 
-track('my-event', { myProperty: '' })
-
 import './globals.css'
 
 const title = 'Contentport'
