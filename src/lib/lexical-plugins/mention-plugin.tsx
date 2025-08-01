@@ -75,9 +75,16 @@ export default function MentionsPlugin() {
             const beforeCursor = text.slice(0, offset)
 
             if (beforeCursor.endsWith('@')) {
+              const afterCursor = text.slice(offset)
               anchorNode.setTextContent(beforeCursor.slice(0, -1))
               const mentionNode = new MentionNode2('@')
               anchorNode.insertAfter(mentionNode)
+              
+              if (afterCursor) {
+                const afterTextNode = $createTextNode(afterCursor)
+                mentionNode.insertAfter(afterTextNode)
+              }
+              
               selection.setTextNodeRange(mentionNode, 1, mentionNode, 1)
               return
             }
