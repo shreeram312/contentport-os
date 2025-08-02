@@ -39,7 +39,7 @@ export const MessageWrapper = memo(
         className={cn(
           'w-full flex flex-col gap-2',
           isUser
-            ? 'px-3.5 justify-self-end items-end'
+            ? 'justify-self-end items-end'
             : 'justify-self-start items-start',
         )}
       >
@@ -49,23 +49,23 @@ export const MessageWrapper = memo(
 
         <div
           className={cn(
-            'w-full flex items-start gap-1 justify-self-start',
-            isUser ? 'max-w-xl justify-self-end' : 'justify-self-start',
+            'w-full grid grid-cols-[40px,1fr] gap-3.5',
+            isUser ? 'justify-self-end' : 'justify-self-start',
             className,
           )}
         >
           {!isUser && (
-            <div className="flex-shrink-0 mt-1.5 size-10 bg-gray-100 rounded-full flex items-center justify-center">
+            <div className="flex-shrink-0 col-start-1 mt-1.5 size-10 bg-gray-100 rounded-full flex items-center justify-center">
               <AnimatedLogo isAnimating={animateLogo} className="size-7 text-gray-500" />
             </div>
           )}
-          <div className="w-full flex-1 space-y-2">
+          <div className="w-full col-start-2 flex-1 space-y-2">
             <div
               className={cn(
-                'p-3.5 space-y-4 rounded-2xl',
+                'space-y-4 rounded-2xl',
                 isUser
-                  ? 'bg-stone-800 w-fit justify-self-end text-white rounded-br-sm'
-                  : 'text-gray-800 rounded-bl-sm',
+                  ? 'bg-stone-800 p-3.5  w-fit justify-self-end text-white rounded-br-sm'
+                  : 'text-gray-800 pt-3.5 rounded-bl-sm',
               )}
             >
               {children}

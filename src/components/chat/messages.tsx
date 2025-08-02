@@ -8,6 +8,7 @@ import { MessageWrapper } from './message-wrapper'
 import { StreamingMessage } from './streaming-message'
 import { TweetMockup } from './tweet-mockup'
 import { WebsiteMockup } from './website-mockup'
+import { ScrollButton } from '../ui/scroll-button'
 
 export const Messages = memo(
   ({
@@ -148,6 +149,10 @@ export const Messages = memo(
               </div>
             )}
           </ChatContainerContent>
+
+          <div className="absolute right-12 bottom-4">
+            <ScrollButton />
+          </div>
         </ChatContainerRoot>
       </>
     )
