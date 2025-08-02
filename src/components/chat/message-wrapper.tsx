@@ -39,7 +39,7 @@ export const MessageWrapper = memo(
         className={cn(
           'w-full flex flex-col gap-2',
           isUser
-            ? 'pl-14 px-3.5 justify-self-end items-end'
+            ? 'px-3.5 justify-self-end items-end'
             : 'justify-self-start items-start',
         )}
       >
@@ -50,7 +50,7 @@ export const MessageWrapper = memo(
         <div
           className={cn(
             'w-full flex items-start gap-1 justify-self-start',
-            isUser ? 'justify-self-end' : 'justify-self-start',
+            isUser ? 'max-w-xl justify-self-end' : 'justify-self-start',
             className,
           )}
         >
