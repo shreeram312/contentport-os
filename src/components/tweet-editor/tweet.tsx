@@ -93,9 +93,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
 
   useEffect(() => {
-    setSkipPostConfirmation(
-      localStorage.getItem('skipPostConfirmation') === 'true',
-    )
+    setSkipPostConfirmation(localStorage.getItem('skipPostConfirmation') === 'true')
   }, [])
 
   // Add video to chat attachments
@@ -689,31 +687,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
     }
   }
 
-  // useEffect(() => {
-  //   if (initialContent) {
-  //     shadowEditor?.update(() => {
-  //       const root = $getRoot()
-  //       const p = $createParagraphNode()
-  //       const text = $createTextNode(initialContent)
-
-  //       p.append(text)
-  //       root.clear()
-  //       root.append(p)
-  //     })
-  //   }
-  // }, [initialContent, shadowEditor])
-
-  // const onEditorChange = (
-  //   editorState: EditorState,
-  //   editor: LexicalEditor,
-  //   tags: Set<string>,
-  // ) => {
-  //   checkSelectionInMention(editor)
-  //   // const content = editorState.read(() => $getRoot().getTextContent())
-  //   // setCharCount(content.length)
-  //   // setTweetContent(content)
-  // }
-
   interface EnqueuePostArgs {
     content: string
     media: {
@@ -849,7 +822,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       })
     }
   }
-
 
   const handlePostTweet = () => {
     const content = shadowEditor?.read(() => $getRoot().getTextContent()) || ''
@@ -1007,21 +979,13 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       )
   }
 
-  // const onEditorChange = useCallback(
-  //   (editorState: EditorState, editor: LexicalEditor, tags: Set<string>) => {
-  //     const content = editorState.read(() => $getRoot().getTextContent())
-  //     setCharCount(content.length)
-  //   },
-  //   [setCharCount]
-  // )
-
   return (
     <>
       <Drawer modal={false} open={open} onOpenChange={setOpen}>
         <EditModeWrapper>
           <div
             className={cn(
-              'relative bg-white p-6 rounded-2xl w-full border border-gray-900 border-opacity-10 bg-clip-padding shadow transition-colors',
+              'relative bg-white p-6 rounded-2xl w-full border border-black border-opacity-[0.01] bg-clip-padding group isolate shadow-[0_1px_1px_rgba(0,0,0,0.05),0_4px_6px_rgba(34,42,53,0.04),0_24px_68px_rgba(47,48,55,0.05),0_2px_3px_rgba(0,0,0,0.04)]  transition-colors',
               isDragging && 'border-indigo-600 border-dashed',
             )}
             onDragOver={handleDragOver}
@@ -1339,7 +1303,11 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                               </DuolingoButton>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{skipPostConfirmation ? 'The tweet will be posted immediately' : 'A confirmation modal will open'}</p>
+                              <p>
+                                {skipPostConfirmation
+                                  ? 'The tweet will be posted immediately'
+                                  : 'A confirmation modal will open'}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
