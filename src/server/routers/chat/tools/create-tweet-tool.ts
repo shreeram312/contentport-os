@@ -27,7 +27,7 @@ const openrouter = createOpenRouter({
 
 const model = openrouter.chat('anthropic/claude-sonnet-4', {
 // const model = openrouter.chat('openrouter/horizon-alpha', {
-  // reasoning: { enabled: false, effort: 'low' },
+  reasoning: { enabled: false, effort: 'low' },
   models: ['openrouter/horizon-alpha', 'anthropic/claude-3.7-sonnet', 'openai/o4-mini'],
 })
 
