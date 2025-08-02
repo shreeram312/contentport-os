@@ -32,20 +32,17 @@ const Page = async () => {
             />
           </div>
           <div className="py-24 sm:pt-12 sm:pb-32">
-            <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-6 lg:px-8 space-y-20">
               <div className="max-w-4xl mx-auto text-center">
                 <div className="flex flex-col justify-center items-center">
-                  <div className="flex items-center justify-center gap-2 text-sm/6 mb-4 py-1 px-4 rounded-full bg-gray-200/50 text-gray-800">
-                    🎉 now open to everyone! 🎉
-                  </div>
                   <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-6xl">
-                    The <span className="text-indigo-600">content engine </span> for
-                    software companies
+                    Your <span className="text-indigo-600">content engine </span> for
+                    growing on Twitter
                   </h1>
                   <p className="mt-8 text-base text-pretty sm:text-xl/8 max-w-2xl">
-                    <span className="opacity-60">Contentport helps technical teams </span>
+                    <span className="opacity-60">Contentport helps you </span>
                     <span className="opacity-100">
-                      create, schedule & manage content
+                      create, schedule & manage twitter content
                     </span>{' '}
                     <span className="opacity-60">
                       at scale. Perfect for busy founders & content managers.
@@ -53,27 +50,6 @@ const Page = async () => {
                   </p>
 
                   <div className="max-w-lg w-full mt-8 flex flex-col gap-4 items-center">
-                    <div className="text-left w-full max-w-md sm:max-w-2xl space-y-3 sm:space-y-2 text-sm sm:text-base px-4 sm:px-0">
-                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
-                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
-                        <p className="text-gray-800 leading-relaxed">
-                          Turn ideas, company updates, or insights into content
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
-                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
-                        <p className="text-gray-800 leading-relaxed">
-                          Plan & schedule a week of content at once
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
-                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
-                        <p className="text-gray-800 leading-relaxed">
-                          Create beautiful visuals (no design skills needed)
-                        </p>
-                      </div>
-                    </div>
-
                     <div className="flex mt-4 flex-col gap-2 max-w-sm w-full">
                       {session?.user ? (
                         <Link href="/studio">
@@ -130,14 +106,39 @@ const Page = async () => {
                             </svg>
                           ))}
                         </div>
-                        <p className="text-sm text-gray-600 ml-[4px]">
-                          loved by 500+ founders
+                        <p className="text-base text-gray-600">
+                          Trusted by{' '}
+                          <span className="font-medium text-gray-900">860</span> founders
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+              <div className="relative flex items-center h-fit -m-2 rounded-xl bg-gray-900/5 p-2 ring-1 ring-gray-900/10 ring-inset lg:-m-4 lg:rounded-2xl lg:p-4 shadow-2xl">
+                <MuxPlayer
+                  accentColor="#4f46e5"
+                  style={{ aspectRatio: 16 / 9 }}
+                  className="w-full h-full overflow-hidden rounded-lg lg:rounded-xl shadow-lg"
+                  poster="https://image.mux.com/01ddBxgG7W53ZCMZ02LLP692sLD4w009XzUtoCd00NcSBO8/thumbnail.png?time=10"
+                  playbackId="01ddBxgG7W53ZCMZ02LLP692sLD4w009XzUtoCd00NcSBO8"
+                  playsInline
+                />
+              </div>
+
+              <>
+                <Script
+                  src="https://widget.senja.io/widget/72519276-9e16-4bc4-9911-49ffb12b73b4/platform.js"
+                  type="text/javascript"
+                  async
+                ></Script>
+                <div
+                  className="senja-embed block w-full mt-20"
+                  data-id="72519276-9e16-4bc4-9911-49ffb12b73b4"
+                  data-mode="shadow"
+                  data-lazyload="false"
+                ></div>
+              </>
             </div>
           </div>
           <div
@@ -155,17 +156,37 @@ const Page = async () => {
         </div>
       </section>
 
-      <section className="bg-gray-50 py-24 sm:py-32">
+      {/* <div className="text-left w-full max-w-md sm:max-w-2xl space-y-3 sm:space-y-2 text-sm sm:text-base px-4 sm:px-0">
+                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
+                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
+                        <p className="text-gray-800 leading-relaxed">
+                          Turn ideas, company updates, or insights into content
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
+                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
+                        <p className="text-gray-800 leading-relaxed">
+                          Plan & schedule a week of content at once
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3 sm:gap-2 text-gray-500">
+                        <span className="text-lg sm:text-base sm:mt-0">✅</span>
+                        <p className="text-gray-800 leading-relaxed">
+                          Create beautiful visuals (no design skills needed)
+                        </p>
+                      </div>
+                    </div> */}
+
+      {/* <section className="bg-gray-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto flex flex-col items-center max-w-3xl text-center mb-16">
             <h2 className="text-4xl text-balance font-semibold tracking-tight text-gray-900 sm:text-5xl mb-6">
-              Great software doesn't sell itself.
+              Create weeks worth of content at once
             </h2>
             <p className="max-w-xl text-base text-pretty text-gray-500 sm:text-xl/8 text-center">
               A built-in AI assistant that helps you put your ideas into clear words
               people care about.
-              {/* Contentport helps software teams turn ideas, updates, and insights into
-              content that drives growth. */}
+              
             </p>
           </div>
 
@@ -174,35 +195,13 @@ const Page = async () => {
               src="/images/demo.png"
               className="absolute -top-40 left-0 hidden xl:block"
             />
-            <div className="relative flex items-center h-fit -m-2 rounded-xl bg-gray-900/5 p-2 ring-1 ring-gray-900/10 ring-inset lg:-m-4 lg:rounded-2xl lg:p-4 shadow-2xl">
-              <MuxPlayer
-                accentColor="#4f46e5"
-                style={{ aspectRatio: 16 / 9 }}
-                className="w-full h-full overflow-hidden rounded-lg lg:rounded-xl shadow-lg"
-                poster="https://image.mux.com/uJIhiNKoX00cm01QlSvoG1y2C9VCo4WljsCvBwVljCwe00/thumbnail.png?time=80"
-                playbackId="uJIhiNKoX00cm01QlSvoG1y2C9VCo4WljsCvBwVljCwe00"
-                playsInline
-              />
-            </div>
-
-            <>
-              <Script
-                src="https://widget.senja.io/widget/3fae6f42-6a34-4da8-81f2-d3389606a704/platform.js"
-                type="text/javascript"
-                async
-              ></Script>
-              <div
-                className="senja-embed block w-full mt-20"
-                data-id="3fae6f42-6a34-4da8-81f2-d3389606a704"
-                data-mode="shadow"
-                data-lazyload="false"
-              ></div>
-            </>
           </div>
         </div>
-      </section>
+      </section> */}
     </>
   )
 }
 
 export default Page
+
+// https://widget.senja.io/widget/3fae6f42-6a34-4da8-81f2-d3389606a704/platform.js
