@@ -39,12 +39,12 @@ const Page = async () => {
                     Your <span className="text-indigo-600">content engine </span> for
                     growing on Twitter
                   </h1>
-                  <p className="mt-8 text-base text-pretty sm:text-xl/8 max-w-2xl">
-                    <span className="opacity-60">Contentport helps you </span>
-                    <span className="opacity-100">
+                  <p className="mt-8 text-gray-500 text-base text-pretty sm:text-xl/8 max-w-2xl">
+                    <span className="">Contentport helps you </span>
+                    <span className="text-black">
                       create, schedule & manage twitter content
                     </span>{' '}
-                    <span className="opacity-60">
+                    <span className="">
                       at scale. Perfect for busy founders & content managers.
                     </span>
                   </p>
