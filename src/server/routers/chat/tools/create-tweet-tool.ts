@@ -3,23 +3,19 @@ import { redis } from '@/lib/redis'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import {
   convertToModelMessages,
-  FileUIPart,
   generateId,
-  ImagePart,
-  ModelMessage,
   streamText,
-  TextPart,
   tool,
-  UIMessageStreamWriter,
+  UIMessageStreamWriter
 } from 'ai'
+import { HTTPException } from 'hono/http-exception'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { Account } from '../../settings-router'
 import { Style } from '../../style-router'
 import { MyUIMessage } from '../chat-router'
-import { parseAttachments, PromptBuilder } from '../utils'
 import { WebsiteContent } from '../read-website-content'
-import { HTTPException } from 'hono/http-exception'
+import { parseAttachments } from '../utils'
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,

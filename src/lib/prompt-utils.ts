@@ -1,8 +1,6 @@
 import { Style } from '@/server/routers/style-router'
-import { nanoid } from 'nanoid'
-import { Tweet } from '../server/routers/style-router'
 import { generateText } from 'ai'
-import { xai } from '@ai-sdk/xai'
+import { nanoid } from 'nanoid'
 
 export const assistantPrompt = ({
   editorContent,
@@ -396,9 +394,8 @@ export interface StyleAnalysis {
   [key: string]: string
 }
 
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { PromptBuilder } from '@/server/routers/chat/utils'
 import { XmlPrompt } from '@/server/routers/chat/tools/create-tweet-tool'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 })
