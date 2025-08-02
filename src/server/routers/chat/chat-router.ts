@@ -8,7 +8,7 @@ import {
   createUIMessageStreamResponse,
   stepCountIs,
   streamText,
-  UIMessage
+  UIMessage,
 } from 'ai'
 import { format } from 'date-fns'
 import 'diff-match-patch-line-and-word'
@@ -22,6 +22,7 @@ import { parseAttachments, PromptBuilder } from './utils'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { getAccount } from '../utils/get-account'
 import { createTweetTool } from './tools/create-tweet-tool'
+import { Ratelimit } from '@upstash/ratelimit'
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -183,13 +184,35 @@ export const chatRouter = j.router({
       const { user } = ctx
       const { id, message } = input as { message: MyUIMessage; id: string }
 
-      const [account, history, parsedAttachments] = await Promise.all([
+      const limiter =
+        user.plan === 'pro'
+          ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(40, '4h') })
+          : new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(5, '1d') })
+
+      const [account, history, parsedAttachments, limitResult] = await Promise.all([
         getAccount({ email: user.email }),
         redis.get<MyUIMessage[]>(`chat:history:${id}`),
         parseAttachments({
           attachments: message.metadata?.attachments,
         }),
+        limiter.limit(user.email),
       ])
+
+      if (process.env.NODE_ENV === 'production') {
+        const { success } = limitResult
+
+        if (!success) {
+          if (user.plan === 'pro') {
+            throw new HTTPException(429, {
+              message: "You've been rate-limited, please try again soon.",
+            })
+          } else {
+            throw new HTTPException(429, {
+              message: 'Free plan limit reached, please upgrade to continue.',
+            })
+          }
+        }
+      }
 
       if (!account) {
         throw new HTTPException(412, { message: 'No connected account' })
