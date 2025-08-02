@@ -37,11 +37,7 @@ import { AttachmentItem } from './attachment-item'
 import { Messages } from './chat/messages'
 import { KnowledgeSelector, SelectedKnowledgeDocument } from './knowledge-selector'
 import DuolingoButton from './ui/duolingo-button'
-import {
-  FileUpload,
-  FileUploadContext,
-  FileUploadTrigger
-} from './ui/file-upload'
+import { FileUpload, FileUploadContext, FileUploadTrigger } from './ui/file-upload'
 import { PromptSuggestion } from './ui/prompt-suggestion'
 
 const ChatInput = ({
@@ -253,8 +249,6 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   const { messages, status, sendMessage, startNewChat, id, stop } = useChatContext()
   const { attachments, removeAttachment, addChatAttachment, addKnowledgeAttachment } =
     useAttachments()
-
-  console.log({ attachments })
 
   const updateURL = useCallback(
     (key: string, value: string) => {
