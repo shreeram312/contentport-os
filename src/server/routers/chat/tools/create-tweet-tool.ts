@@ -16,6 +16,7 @@ import { Style } from '../../style-router'
 import { MyUIMessage } from '../chat-router'
 import { WebsiteContent } from '../read-website-content'
 import { parseAttachments } from '../utils'
+import { format } from 'date-fns'
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -113,7 +114,7 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
 
       const prompt = new XmlPrompt()
 
-      prompt.open('prompt')
+      prompt.open('prompt', { date: format(new Date(), 'yyyy-MM-dd') })
 
       // system
       prompt.open('system')
