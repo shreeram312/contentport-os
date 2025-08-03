@@ -6,7 +6,7 @@ import {
   generateId,
   streamText,
   tool,
-  UIMessageStreamWriter
+  UIMessageStreamWriter,
 } from 'ai'
 import { HTTPException } from 'hono/http-exception'
 import { nanoid } from 'nanoid'
@@ -21,15 +21,10 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 })
 
-const model = openrouter.chat('anthropic/claude-sonnet-4', {
-// const model = openrouter.chat('openrouter/horizon-alpha', {
-  reasoning: { enabled: false, effort: 'low' },
-  models: ['openrouter/horizon-alpha', 'anthropic/claude-3.7-sonnet', 'openai/o4-mini'],
-})
-
 interface Context {
   writer: UIMessageStreamWriter
   ctx: {
+    plan: 'free' | 'pro'
     editorContent: string
     instructions: string
     userContent: string
@@ -186,7 +181,17 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
         },
       ]
 
-      console.log('🙏🙏🙏 FINAL MESSAGES', JSON.stringify(messages, null, 2))
+      const modelName =
+        ctx.plan === 'pro' ? 'anthropic/claude-sonnet-4' : 'openrouter/horizon-beta'
+
+      const model = openrouter.chat(modelName, {
+        reasoning: { enabled: false, effort: 'low' },
+        models: [
+          'openrouter/horizon-alpha',
+          'anthropic/claude-3.7-sonnet',
+          'openai/o4-mini',
+        ],
+      })
 
       const result = streamText({
         model,

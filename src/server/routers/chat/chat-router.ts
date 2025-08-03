@@ -274,6 +274,7 @@ export const chatRouter = j.router({
           const writeTweet = createTweetTool({
             writer,
             ctx: {
+              plan: user.plan as 'free' | 'pro',
               editorContent: message.metadata?.editorContent ?? '',
               instructions: userContent,
               messages,
@@ -289,9 +290,11 @@ export const chatRouter = j.router({
 
           const readWebsiteContent = create_read_website_content({ chatId: id })
 
+          const modelName =
+            user.plan === 'pro' ? 'openai/gpt-4.1' : 'openrouter/horizon-beta'
+
           const result = streamText({
-            model: openrouter.chat('openai/gpt-4.1', {
-              // model: openrouter.chat('openrouter/horizon-alpha', {
+            model: openrouter.chat(modelName, {
               models: ['openai/gpt-4o'],
               reasoning: { enabled: false, effort: 'low' },
             }),
