@@ -41,7 +41,14 @@ import posthog from 'posthog-js'
 import { PropsWithChildren, useCallback, useRef, useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { Icons } from '../icons'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog'
 import {
   Drawer,
   DrawerClose,
@@ -89,12 +96,22 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const [imageDrawerOpen, setImageDrawerOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false)
-
   const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
+  const [didTogglePostConfirmation, setDidTogglePostConfirmation] = useState(false)
+  console.log('didTogglePostConfirmation', didTogglePostConfirmation)
 
   useEffect(() => {
     setSkipPostConfirmation(localStorage.getItem('skipPostConfirmation') === 'true')
   }, [])
+
+  const toggleSkipConfirmation = (checked: boolean) => {
+    setSkipPostConfirmation(checked)
+    if (checked) {
+      localStorage.setItem('skipPostConfirmation', 'true')
+    } else {
+      localStorage.removeItem('skipPostConfirmation')
+    }
+  }
 
   // Add video to chat attachments
   const handleAddVideoToChat = (mediaFile: MediaFile) => {
@@ -379,8 +396,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         tweetId: data.tweetId,
         accountId: data.accountId,
         accountName: data.accountName,
-        content: variables.content,
-        media: variables.media,
       })
 
       fire({
@@ -841,7 +856,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       return
     }
 
-    if (skipPostConfirmation) {
+    if (localStorage.getItem('skipPostConfirmation') === 'true') {
       performPostTweet()
     } else {
       setShowPostConfirmModal(true)
@@ -862,15 +877,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       content,
       media,
     })
-  }
-
-  const toggleSkipConfirmation = (checked: boolean) => {
-    setSkipPostConfirmation(checked)
-    if (checked) {
-      localStorage.setItem('skipPostConfirmation', 'true')
-    } else {
-      localStorage.removeItem('skipPostConfirmation')
-    }
   }
 
   const handleConfirmPost = () => {
@@ -1304,7 +1310,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>
-                                {skipPostConfirmation
+                                {localStorage.getItem('skipPostConfirmation') === 'true'
                                   ? 'The tweet will be posted immediately'
                                   : 'A confirmation modal will open'}
                               </p>
@@ -1376,12 +1382,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           </div>
         </EditModeWrapper>
 
-        {/* <div className="flex justify-center">
-          <button className="border inline-flex items-center gap-0.5 border-dashed shadow-sm border-gray-200 px-2 text-sm/6 rounded-md bg-white">
-            <Plus className="size-3" /> <p className='opacity-80'>Thread</p>
-          </button>
-        </div> */}
-
         <Drawer modal={false} open={imageDrawerOpen} onOpenChange={setImageDrawerOpen}>
           <DrawerContent className="h-full">
             <div className="max-w-6xl mx-auto w-full">
@@ -1414,39 +1414,64 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
         </Drawer>
       </Drawer>
 
-      <Dialog open={showPostConfirmModal} onOpenChange={setShowPostConfirmModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">Post to Twitter</DialogTitle>
-          </DialogHeader>
-          <div className="">
-            <p className="text-base text-muted-foreground mb-4">
-              This will post to Twitter. Continue?
-            </p>
-            <DuolingoCheckbox
-              id="skip-post-confirmation"
-              label="Don't show this again"
-              checked={skipPostConfirmation}
-              onChange={(e) => toggleSkipConfirmation(e.target.checked)}
-            />
+      <Dialog
+        open={showPostConfirmModal}
+        onOpenChange={(open) => {
+          setShowPostConfirmModal(open)
+
+          if (!open) {
+            setDidTogglePostConfirmation(false)
+          }
+        }}
+      >
+        <DialogContent className="bg-white rounded-2xl p-6">
+          <div className="size-12 bg-gray-100 rounded-full flex items-center justify-center">
+            <Icons.twitter className="size-6" />
           </div>
-          <div className="flex justify-end gap-3">
+          <DialogHeader className="py-2">
+            <DialogTitle className="text-lg font-semibold">Post to Twitter</DialogTitle>
+            <DialogDescription>
+              This tweet will be posted immediately. Would you like to continue?
+            </DialogDescription>
+            <div className="flex justify-center sm:justify-start pt-4">
+              <DuolingoCheckbox
+                className=""
+                id="skip-post-confirmation"
+                label="Don't show this again"
+                checked={didTogglePostConfirmation}
+                onChange={(e) => setDidTogglePostConfirmation(e.target.checked)}
+              />
+            </div>
+          </DialogHeader>
+
+          <DialogFooter>
             <DuolingoButton
               variant="secondary"
               size="sm"
-              onClick={() => setShowPostConfirmModal(false)}
+              className="h-11"
+              onClick={() => {
+                setShowPostConfirmModal(false)
+                setDidTogglePostConfirmation(false)
+              }}
             >
               Cancel
             </DuolingoButton>
             <DuolingoButton
+              loading={postTweetMutation.isPending}
               size="sm"
-              onClick={handleConfirmPost}
-              disabled={postTweetMutation.isPending}
+              className="h-11"
+              onClick={(e) => {
+                e.preventDefault()
+                if (didTogglePostConfirmation) {
+                  toggleSkipConfirmation(true)
+                }
+                handleConfirmPost()
+              }}
             >
               <Icons.twitter className="size-4 mr-2" />
               {postTweetMutation.isPending ? 'Posting...' : 'Post Now'}
             </DuolingoButton>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

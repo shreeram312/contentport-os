@@ -630,6 +630,119 @@ export const tweetRouter = j.router({
     return c.json({ success: true })
   }),
 
+  postImmediateFromQueue: privateProcedure
+    .input(
+      z.object({
+        tweetId: z.string(),
+      }),
+    )
+    .mutation(async ({ c, ctx, input }) => {
+      const { user } = ctx
+      const { tweetId } = input
+
+      const account = await getAccount({
+        email: user.email,
+      })
+
+      if (!account?.id) {
+        throw new HTTPException(400, {
+          message: 'Please connect your Twitter account',
+        })
+      }
+
+      const dbAccount = await db.query.account.findFirst({
+        where: and(eq(accountSchema.userId, user.id), eq(accountSchema.id, account.id)),
+      })
+
+      if (!dbAccount || !dbAccount.accessToken) {
+        throw new HTTPException(400, {
+          message: 'Account not found',
+        })
+      }
+
+      const [tweet] = await db
+        .select()
+        .from(tweets)
+        .where(
+          and(
+            eq(tweets.id, tweetId),
+            eq(tweets.userId, user.id),
+            eq(tweets.accountId, account.id),
+            eq(tweets.isScheduled, true),
+            eq(tweets.isPublished, false),
+          ),
+        )
+
+      if (!tweet) {
+        throw new HTTPException(404, { message: 'Tweet not found' })
+      }
+
+      if (tweet.qstashId) {
+        const messages = qstash.messages
+        try {
+          await messages.delete(tweet.qstashId)
+        } catch (err) {
+          throw new HTTPException(500, {
+            message: 'Failed to cancel existing scheduled tweet',
+          })
+        }
+      } else {
+        throw new HTTPException(400, { message: 'Tweet is not scheduled' })
+      }
+
+      const client = new TwitterApi({
+        appKey: consumerKey as string,
+        appSecret: consumerSecret as string,
+        accessToken: dbAccount.accessToken as string,
+        accessSecret: dbAccount.accessSecret as string,
+      })
+
+      try {
+        const tweetPayload: SendTweetV2Params = {
+          text: tweet.content,
+        }
+
+        if (tweet.media && tweet.media.length > 0) {
+          tweetPayload.media = {
+            // @ts-expect-error tuple
+            media_ids: tweet.media.map((m) => m.media_id),
+          }
+        }
+
+        const res = await client.v2.tweet(tweetPayload)
+
+        // update the tweet in the database
+        await db
+          .update(tweets)
+          .set({
+            isScheduled: false,
+            isPublished: true,
+            updatedAt: new Date(),
+            twitterId: res.data.id,
+          })
+          .where(
+            and(
+              eq(tweets.id, tweetId),
+              eq(tweets.userId, user.id),
+              eq(tweets.accountId, account.id),
+            ),
+          )
+
+        return c.json({
+          success: true,
+          tweetId: res.data.id,
+          accountId: account.id,
+          accountName: account.name, // Display name of the twitter (x) user, do not use for tweet urls
+          accountUsername: account.username, // Username of the twitter (x) user, use for correct tweet urls
+        })
+      } catch (error) {
+        console.error('Failed to post tweet:', error)
+        throw new HTTPException(500, {
+          message: 'Failed to post tweet to Twitter',
+        })
+      }
+    }),
+
   postImmediate: privateProcedure
     .input(
       z.object({
@@ -902,11 +1015,6 @@ export const tweetRouter = j.router({
         timezone: string
         maxDaysAhead: number
       }) {
-        // hours of the day
-        // const userUnix = fromZonedTime(userNow, timezone).getTime()
-        // const toServerTz = toZonedTime(userUnix, process.env.TZ)
-        // const userUnix = userNow.getTime()
-
         for (let dayOffset = 0; dayOffset <= maxDaysAhead; dayOffset++) {
           let checkDay: Date | undefined = undefined
 
@@ -914,13 +1022,8 @@ export const tweetRouter = j.router({
           else checkDay = startOfDay(addDays(userNow, dayOffset))
 
           for (const hour of SLOTS) {
-            console.log('HOUR IS:', hour)
             const localSlotTime = startOfHour(setHours(checkDay, hour))
             const slotTime = fromZonedTime(localSlotTime, timezone)
-            console.log({ slotTime })
-
-            // const slotUnix = fromZonedTime(localSlotTime, timezone).getTime()
-            // const userUnixForComparison = fromZonedTime(userNow, timezone).getTime()
 
             if (isAfter(slotTime, userNow) && isSpotEmpty(slotTime)) {
               return slotTime
@@ -942,9 +1045,6 @@ export const tweetRouter = j.router({
       }
 
       const scheduledUnix = nextSlot.getTime()
-
-      // const zoned = toZonedTime(nextSlot, timezone)
-      // const scheduledUnix = zoned.getTime()
 
       const tweetId = crypto.randomUUID()
 

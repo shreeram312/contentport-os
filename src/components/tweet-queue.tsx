@@ -4,14 +4,28 @@ import { client } from '@/lib/client'
 import { cn } from '@/lib/utils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, isThisWeek, isToday, isTomorrow } from 'date-fns'
-import { Clock, Edit, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Clock, Edit, MoreHorizontal, Send, Trash2 } from 'lucide-react'
 
+import { useConfetti } from '@/hooks/use-confetti'
 import { useTweets } from '@/hooks/use-tweets'
 import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Fragment } from 'react'
+import posthog from 'posthog-js'
+import { Fragment, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { Icons } from './icons'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,16 +34,27 @@ import {
 } from './ui/dropdown-menu'
 import DuolingoBadge from './ui/duolingo-badge'
 import DuolingoButton from './ui/duolingo-button'
+import DuolingoCheckbox from './ui/duolingo-checkbox'
 import { Loader } from './ui/loader'
+import { Separator } from './ui/separator'
 
 export default function TweetQueue() {
   const queryClient = useQueryClient()
+  const { fire } = useConfetti()
+  const [pendingPostId, setPendingPostId] = useState<string | null>(null)
 
   const { shadowEditor, setMediaFiles } = useTweets()
   const router = useRouter()
 
   const userNow = new Date()
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
+  const [didTogglePostConfirmation, setDidTogglePostConfirmation] = useState(false)
+
+  useEffect(() => {
+    setSkipPostConfirmation(localStorage.getItem('skipPostConfirmation') === 'true')
+  }, [])
 
   const { data, isPending } = useQuery({
     queryKey: ['queue-slots'],
@@ -51,6 +76,50 @@ export default function TweetQueue() {
     },
   })
 
+  const { mutate: postImmediateFromQueue, isPending: isPosting } = useMutation({
+    mutationFn: async ({ tweetId }: { tweetId: string }) => {
+      const res = await client.tweet.postImmediateFromQueue.$post({ tweetId })
+      const data = await res.json()
+      return data
+    },
+    onSuccess: (data) => {
+      setPendingPostId(null)
+
+      queryClient.invalidateQueries({ queryKey: ['queue-slots'] })
+      queryClient.invalidateQueries({ queryKey: ['scheduled-and-published-tweets'] })
+
+      toast.success(
+        <div className="flex items-center gap-2">
+          <p>Tweet posted!</p>
+          <Link
+            target="_blank"
+            rel="noreferrer"
+            href={`https://x.com/${data.accountUsername}/status/${data.tweetId}`}
+            className="text-base text-indigo-600 decoration-2 underline-offset-2 flex items-center gap-1 underline shrink-0 bg-white/10 hover:bg-white/20 rounded py-0.5 transition-colors"
+          >
+            See tweet
+          </Link>
+        </div>,
+      )
+
+      posthog.capture('tweet_posted', {
+        tweetId: data.tweetId,
+        accountId: data.accountId,
+        accountName: data.accountName,
+      })
+
+      fire({
+        particleCount: 100,
+        spread: 110,
+        origin: { y: 0.6 },
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to post tweet:', error)
+      toast.error('Failed to post tweet')
+    },
+  })
+
   if (isPending) {
     return (
       <div className="space-y-6">
@@ -69,421 +138,242 @@ export default function TweetQueue() {
     return format(unix, 'MMM d')
   }
 
-  // return (
-  //   <>
-  //     {data?.results.map((result) => {
-  //       const [day, times] = Object.entries(result)[0]!
+  const toggleSkipConfirmation = (checked: boolean) => {
+    setSkipPostConfirmation(checked)
+    if (checked) {
+      localStorage.setItem('skipPostConfirmation', 'true')
+    } else {
+      localStorage.removeItem('skipPostConfirmation')
+    }
+  }
 
-  //       return (
-  //         <div key={day}>
-  //           <p>{renderDay(Number(day))}</p>
-  //           <ul>
-  //             {times.map(({ unix, tweet }) => (
-  //               <li key={unix}>
-  //                 <div className="flex items-center gap-2">
-  //                   <p>{format(unix, 'HH:mm')}</p>
-  //                   <p>tweet: {Boolean(tweet) ? 'yes' : 'No'}</p>
-  //                 </div>
-  //               </li>
-  //             ))}
-  //           </ul>
-  //         </div>
-  //       )
-  //     })}
-  //   </>
-  // )
   return (
-    <div className="space-y-2">
-      {data?.results.map((result) => {
-        const [day, tweets] = Object.entries(result)[0]!
+    <>
+      <div className="space-y-2">
+        {data?.results.map((result) => {
+          const [day, tweets] = Object.entries(result)[0]!
 
-        if (tweets.length === 0) return null
+          if (tweets.length === 0) return null
 
-        return (
-          <Card key={day} className={cn('overflow-hidden')}>
-            <CardHeader className="">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                {renderDay(Number(day))}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div
-                className="grid gap-3"
-                style={{ gridTemplateColumns: 'auto 1fr auto' }}
-              >
-                {tweets.map(({ unix, tweet, isQueued }) => (
-                  <Fragment key={tweet?.id || `${day}-${unix}-time`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex items-center gap-2 w-[100px]">
-                          <Clock className="size-4 text-stone-500" />
-                          <span className="font-medium text-sm text-stone-700">
-                            {format(unix, "hh:mmaaaaa'm'")}
-                          </span>
-                        </div>
-                        <div className="flex w-[65px] items-start justify-center gap-2">
-                          {isQueued ? (
-                            <DuolingoBadge
-                              variant={tweet ? 'achievement' : 'gray'}
-                              className="text-xs"
-                            >
-                              {tweet ? 'Queued' : 'Empty'}
-                            </DuolingoBadge>
-                          ) : tweet ? (
-                            <DuolingoBadge variant="amber" className="text-xs">
-                              Manual
-                            </DuolingoBadge>
-                          ) : null}
+          return (
+            <Card key={day} className={cn('overflow-hidden')}>
+              <CardHeader className="">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  {renderDay(Number(day))}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div
+                  className="grid gap-3"
+                  style={{ gridTemplateColumns: 'auto 1fr auto' }}
+                >
+                  {tweets.map(({ unix, tweet, isQueued }) => (
+                    <Fragment key={tweet?.id || `${day}-${unix}-time`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-2 w-[100px]">
+                            <Clock className="size-4 text-stone-500" />
+                            <span className="font-medium text-sm text-stone-700">
+                              {format(unix, "hh:mmaaaaa'm'")}
+                            </span>
+                          </div>
+                          <div className="flex w-[65px] items-start justify-center gap-2">
+                            {isQueued ? (
+                              <DuolingoBadge
+                                variant={tweet ? 'achievement' : 'gray'}
+                                className="text-xs"
+                              >
+                                {tweet ? 'Queued' : 'Empty'}
+                              </DuolingoBadge>
+                            ) : tweet ? (
+                              <DuolingoBadge variant="amber" className="text-xs">
+                                Manual
+                              </DuolingoBadge>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div
-                      className={cn(
-                        'px-4 py-3 rounded-lg border',
-                        tweet
-                          ? 'bg-white border-stone-200 shadow-sm'
-                          : 'bg-stone-50 border-dashed border-stone-300',
-                      )}
-                    >
-                      {tweet ? (
-                        <div className="space-y-2">
-                          <p className="text-stone-900 whitespace-pre-line text-sm leading-relaxed">
-                            {tweet.content || 'No content'}
-                          </p>
-                          {tweet.media && tweet.media.length > 0 && (
-                            <div className="text-xs text-stone-500">
-                              📎 {tweet.media.length} media file
-                              {tweet.media.length > 1 ? 's' : ''}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-stone-500">
-                          <span className="text-sm">Empty slot</span>
-                        </div>
-                      )}
-                    </div>
+                      <div
+                        className={cn(
+                          'px-4 py-3 rounded-lg border',
+                          tweet
+                            ? 'bg-white border-stone-200 shadow-sm'
+                            : 'bg-stone-50 border-dashed border-stone-300',
+                        )}
+                      >
+                        {tweet ? (
+                          <div className="space-y-2">
+                            <p className="text-stone-900 whitespace-pre-line text-sm leading-relaxed">
+                              {tweet.content || 'No content'}
+                            </p>
+                            {tweet.media && tweet.media.length > 0 && (
+                              <div className="text-xs text-stone-500">
+                                📎 {tweet.media.length} media file
+                                {tweet.media.length > 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-stone-500">
+                            <span className="text-sm">Empty slot</span>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex items-center">
-                      {tweet && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <DuolingoButton
-                              variant="secondary"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <MoreHorizontal className="size-4" />
-                              <span className="sr-only">Tweet options</span>
-                            </DuolingoButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <button
-                                onClick={() => {
-                                  if (tweet) {
-                                    shadowEditor.update(() => {
-                                      const root = $getRoot()
-                                      const p = $createParagraphNode()
-                                      const text = $createTextNode(tweet.content)
-                                      p.append(text)
-                                      root.clear()
-                                      root.append(p)
-                                      root.selectEnd()
-                                    })
+                      <div className="flex items-center">
+                        {tweet && (
+                          <Dialog
+                            open={pendingPostId === tweet.id}
+                            onOpenChange={(open) => {
+                              setPendingPostId(open ? tweet.id : null)
+                              
+                              if (!open) {
+                                setDidTogglePostConfirmation(false)
+                              }
+                            }}
+                          >
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <DuolingoButton
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                  <span className="sr-only">Tweet options</span>
+                                </DuolingoButton>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  className="mb-1 w-full"
+                                  onClick={() => {
+                                    if (tweet) {
+                                      shadowEditor.update(() => {
+                                        const root = $getRoot()
+                                        const p = $createParagraphNode()
+                                        const text = $createTextNode(tweet.content)
+                                        p.append(text)
+                                        root.clear()
+                                        root.append(p)
+                                        root.selectEnd()
+                                      })
 
-                                    setMediaFiles(tweet.media || [])
+                                      setMediaFiles(tweet.media || [])
 
-                                    router.push(`/studio?edit=${tweet.id}`)
-                                  }
-                                }}
-                                className="w-full flex items-center gap-2"
-                              >
-                                <Edit className="size-4" />
-                                Edit
-                              </button>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => deleteTweet(tweet!.id)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="size-4 text-red-600" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </Fragment>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
+                                      router.push(`/studio?edit=${tweet.id}`)
+                                    }
+                                  }}
+                                >
+                                  <Edit className="size-4 mr-1" />
+                                  <div className="flex flex-col">
+                                    <p>Edit</p>
+                                    <p className="text-xs text-stone-500">
+                                      Open this tweet in the editor.
+                                    </p>
+                                  </div>
+                                </DropdownMenuItem>
+
+                                <Separator />
+
+                                <DropdownMenuItem asChild className="my-1 w-full">
+                                  <DialogTrigger>
+                                    <Send className="size-4 mr-1" />
+                                    <div className="flex items-start flex-col">
+                                      <p>Post Now</p>
+                                      <p className="text-xs text-stone-500">
+                                        {skipPostConfirmation
+                                          ? 'Tweet will be posted immediately'
+                                          : 'A confirmation model will open.'}
+                                      </p>
+                                    </div>
+                                  </DialogTrigger>
+                                </DropdownMenuItem>
+
+                                <Separator />
+
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  className="mt-1 w-full"
+                                  onClick={() => deleteTweet(tweet!.id)}
+                                >
+                                  <Trash2 className="size-4 mr-1 text-red-600" />
+                                  <div className="flex text-red-600  flex-col">
+                                    <p>Delete</p>
+                                    <p className="text-xs text-red-600">
+                                      Delete this tweet from the queue.
+                                    </p>
+                                  </div>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <DialogContent className="bg-white rounded-2xl p-6">
+                              <div className="size-12 bg-gray-100 rounded-full flex items-center justify-center">
+                                <Icons.twitter className="size-6" />
+                              </div>
+                              <DialogHeader className="py-2">
+                                <DialogTitle className="text-lg font-semibold">
+                                  Post to Twitter
+                                </DialogTitle>
+                                <DialogDescription>
+                                  This tweet will be posted and removed from your queue
+                                  immediately. Would you like to continue?
+                                </DialogDescription>
+                                <div className="flex justify-center sm:justify-start pt-4">
+                                  <DuolingoCheckbox
+                                    className=""
+                                    id="skip-post-confirmation"
+                                    label="Don't show this again"
+                                    checked={didTogglePostConfirmation}
+                                    onChange={(e) =>
+                                      setDidTogglePostConfirmation(e.target.checked)
+                                    }
+                                  />
+                                </div>
+                              </DialogHeader>
+
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <DuolingoButton
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-11"
+                                    onClick={() => {
+                                      setDidTogglePostConfirmation(false)
+                                    }}
+                                  >
+                                    Cancel
+                                  </DuolingoButton>
+                                </DialogClose>
+                                <DuolingoButton
+                                  loading={isPosting}
+                                  size="sm"
+                                  className="h-11"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    if (didTogglePostConfirmation) {
+                                      toggleSkipConfirmation(true)
+                                    }
+                                    postImmediateFromQueue({ tweetId: tweet.id })
+                                  }}
+                                >
+                                  <Icons.twitter className="size-4 mr-2" />
+                                  {isPosting ? 'Posting...' : 'Post Now'}
+                                </DuolingoButton>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                    </Fragment>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    </>
   )
-
-  // const deleteTweetMutation = useMutation({
-  //   mutationFn: async (tweetId: string) => {
-  //     const res = await client.tweet.delete.$post({ id: tweetId })
-  //     return await res.json()
-  //   },
-  //   onSuccess: () => {
-  //     toast.success('🗑️ Tweet deleted & unscheduled')
-  //     queryClient.invalidateQueries({ queryKey: ['queue-slots'] })
-  //     queryClient.invalidateQueries({ queryKey: ['scheduled-and-published-tweets'] })
-  //   },
-  // })
-
-  // if (isPending) {
-  //   return (
-  //     <div className="space-y-6">
-  //       <div className="flex flex-col items-center justify-center text-center py-12">
-  //         <Loader variant="classic" />
-  //         <p className="text-sm text-stone-600 mt-4">Loading queue...</p>
-  //       </div>
-  //     </div>
-  //   )
-  // }
-
-  // const slots: QueueSlot[] = data?.slots || []
-  // const now = new Date()
-  // const todayStr = format(startOfToday(), 'yyyy-MM-dd')
-
-  // // Filter and organize slots
-  // const filteredSlots = slots.filter((slot: QueueSlot) => {
-  //   const slotDate = new Date(slot.date)
-  //   const isSlotToday = slot.date === todayStr
-
-  //   // Skip dates before today
-  //   if (isBefore(slotDate, startOfToday())) {
-  //     return false
-  //   }
-
-  //   // For today, only include slots that haven't passed or manual bookings
-  //   if (isSlotToday) {
-  //     const slotTime = new Date(slot.scheduledUnix * 1000)
-  //     const hasPassedToday = isBefore(slotTime, now)
-
-  //     // Keep slot if it hasn't passed OR if it's a manual booking (not queue slot)
-  //     return !hasPassedToday || !slot.isQueueSlot
-  //   }
-
-  //   // For future dates, include all slots
-  //   return true
-  // })
-
-  // const slotsByDate = filteredSlots.reduce(
-  //   (acc: Record<string, QueueSlot[]>, slot: QueueSlot) => {
-  //     if (!acc[slot.date]) {
-  //       acc[slot.date] = []
-  //     }
-  //     acc[slot.date]!.push(slot)
-  //     return acc
-  //   },
-  //   {} as Record<string, QueueSlot[]>,
-  // )
-
-  // const handleDeleteTweet = async (tweetId: string) => {
-  //   await deleteTweetMutation.mutateAsync(tweetId)
-  // }
-
-  // return (
-  //   <div className="space-y-6">
-  //     <div className="flex items-center gap-3">
-  //       <AccountAvatar className="size-10" />
-  //       <div className="flex flex-col">
-  //         <h1 className="text-2xl font-semibold text-stone-900">Queued Tweets</h1>
-  //         <p className="text-sm text-stone-600">
-  //           Automatically queue posts to peak activity times.
-  //         </p>
-  //       </div>
-  //     </div>
-
-  //     <div className="grid gap-6">
-  //       {Object.entries(slotsByDate)
-  //         .sort(
-  //           ([a], [b]: [string, QueueSlot[]]) =>
-  //             new Date(a).getTime() - new Date(b).getTime(),
-  //         )
-  //         .map(([date, dateSlots]: [string, QueueSlot[]]) => {
-  //           const dateObj = new Date(date)
-  //           const isTodayDate = isToday(dateObj)
-  //           const isTomorrowDate = isTomorrow(dateObj)
-
-  //           const sortedSlots = [...dateSlots].sort(
-  //             (a, b) => a.scheduledUnix - b.scheduledUnix,
-  //           )
-
-  //           return (
-  //             <Card key={date} className={cn('overflow-hidden')}>
-  //               <CardHeader className="">
-  //                 <CardTitle className="flex items-center gap-2 text-lg">
-  //                   <span>
-  //                     {isTodayDate ? (
-  //                       <span className="space-x-2">
-  //                         <span className="text-stone-900">Today</span>
-  //                         <span className="text-stone-900 opacity-50 text-sm">
-  //                           {format(dateObj, 'MMM d')}
-  //                         </span>
-  //                       </span>
-  //                     ) : isTomorrowDate ? (
-  //                       <span className="space-x-2">
-  //                         <span className="text-stone-900">Tomorrow</span>
-  //                         <span className="text-stone-900 opacity-50 text-sm">
-  //                           {format(dateObj, 'MMM d')}
-  //                         </span>
-  //                       </span>
-  //                     ) : (
-  //                       <span className="space-x-2">
-  //                         <span className="text-stone-900">
-  //                           {format(dateObj, 'EEEE')}
-  //                         </span>
-  //                         <span className="text-stone-900 opacity-50 text-sm">
-  //                           {format(dateObj, 'MMM d')}
-  //                         </span>
-  //                       </span>
-  //                     )}
-  //                   </span>
-  //                 </CardTitle>
-  //               </CardHeader>
-  //               <CardContent className="space-y-3">
-  //                 <div
-  //                   className="grid gap-3"
-  //                   style={{ gridTemplateColumns: 'auto 1fr auto' }}
-  //                 >
-  //                   {sortedSlots.map((slot) => (
-  //                     <Fragment key={slot.tweet?.id || `${slot.date}-${slot.time}-time`}>
-  //                       <div className="flex items-start justify-between">
-  //                         <div className="flex items-center gap-2 mt-2">
-  //                           <div className="flex items-center gap-2 w-[100px]">
-  //                             <Clock className="size-4 text-stone-500" />
-  //                             <span className="font-medium text-sm text-stone-700">
-  //                               {slot.displayTime}
-  //                             </span>
-  //                           </div>
-  //                           <div className="flex w-[65px] items-start justify-center gap-2">
-  //                             {slot.isQueueSlot ? (
-  //                               <DuolingoBadge
-  //                                 variant={slot.tweet ? 'achievement' : 'gray'}
-  //                                 className="text-xs"
-  //                               >
-  //                                 {slot.tweet ? 'Queued' : 'Empty'}
-  //                               </DuolingoBadge>
-  //                             ) : slot.tweet ? (
-  //                               <DuolingoBadge variant="amber" className="text-xs">
-  //                                 Manual
-  //                               </DuolingoBadge>
-  //                             ) : null}
-  //                           </div>{' '}
-  //                         </div>
-  //                       </div>
-
-  //                       <div
-  //                         key={`${slot.date}-${slot.time}-content`}
-  //                         className={cn(
-  //                           'px-4 py-3 rounded-lg border',
-  //                           slot.tweet
-  //                             ? 'bg-white border-stone-200 shadow-sm'
-  //                             : 'bg-stone-50 border-dashed border-stone-300',
-  //                         )}
-  //                       >
-  //                         {slot.tweet ? (
-  //                           <div className="space-y-2">
-  //                             <p className="text-stone-900 text-sm leading-relaxed">
-  //                               {slot.tweet.content || 'No content'}
-  //                             </p>
-  //                             {slot.tweet.media && slot.tweet.media.length > 0 && (
-  //                               <div className="text-xs text-stone-500">
-  //                                 📎 {slot.tweet.media.length} media file
-  //                                 {slot.tweet.media.length > 1 ? 's' : ''}
-  //                               </div>
-  //                             )}
-  //                           </div>
-  //                         ) : (
-  //                           <div className="flex items-center gap-2 text-stone-500">
-  //                             <span className="text-sm">Empty slot</span>
-  //                           </div>
-  //                         )}
-  //                       </div>
-
-  //                       <div
-  //                         key={`${slot.date}-${slot.time}-actions`}
-  //                         className="flex items-center"
-  //                       >
-  //                         {slot.tweet && (
-  //                           <DropdownMenu>
-  //                             <DropdownMenuTrigger asChild>
-  //                               <DuolingoButton
-  //                                 variant="secondary"
-  //                                 size="icon"
-  //                                 className="h-8 w-8"
-  //                               >
-  //                                 <MoreHorizontal className="size-4" />
-  //                                 <span className="sr-only">Tweet options</span>
-  //                               </DuolingoButton>
-  //                             </DropdownMenuTrigger>
-  //                             <DropdownMenuContent align="end">
-  //                               <DropdownMenuItem asChild>
-  //                                 <button
-  //                                   onClick={() => {
-  //                                     const tweet = slot.tweet
-  //                                     if (tweet) {
-  //                                       shadowEditor.update(() => {
-  //                                         const root = $getRoot()
-  //                                         const p = $createParagraphNode()
-  //                                         const text = $createTextNode(tweet.content)
-  //                                         p.append(text)
-  //                                         root.clear()
-  //                                         root.append(p)
-  //                                         root.selectEnd()
-  //                                       })
-
-  //                                       setMediaFiles(tweet.media || [])
-
-  //                                       router.push(`/studio?edit=${tweet.id}`)
-  //                                     }
-  //                                   }}
-  //                                   className="w-full flex items-center gap-2"
-  //                                 >
-  //                                   <Edit className="size-4" />
-  //                                   Edit
-  //                                 </button>
-  //                               </DropdownMenuItem>
-  //                               <DropdownMenuItem
-  //                                 onClick={() => handleDeleteTweet(slot.tweet!.id)}
-  //                                 className="text-red-600 focus:text-red-600"
-  //                               >
-  //                                 <Trash2 className="size-4 text-red-600" />
-  //                                 Delete
-  //                               </DropdownMenuItem>
-  //                             </DropdownMenuContent>
-  //                           </DropdownMenu>
-  //                         )}
-  //                       </div>
-  //                     </Fragment>
-  //                   ))}
-  //                 </div>
-  //               </CardContent>
-  //             </Card>
-  //           )
-  //         })}
-  //     </div>
-
-  //     {Object.keys(slotsByDate).length === 0 && (
-  //       <div className="text-center py-12">
-  //         <Calendar className="size-12 text-stone-400 mx-auto mb-4" />
-  //         <h3 className="text-lg font-medium text-stone-900 mb-2">No scheduled tweets</h3>
-  //         <p className="text-stone-600 mb-4">
-  //           Your queue is empty. Schedule your first tweet to get started.
-  //         </p>
-  //         <Link href="/studio">
-  //           <DuolingoButton>Create Tweet</DuolingoButton>
-  //         </Link>
-  //       </div>
-  //     )}
-  //   </div>
-  // )
 }
