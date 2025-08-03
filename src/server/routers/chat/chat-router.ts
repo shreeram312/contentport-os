@@ -1,5 +1,6 @@
 import { assistantPrompt } from '@/lib/prompt-utils'
 import { DiffWithReplacement } from '@/lib/utils'
+import { XmlPrompt } from '@/lib/xml-prompt'
 import {
   convertToModelMessages,
   CoreMessage,
@@ -17,7 +18,7 @@ import { z } from 'zod'
 import { redis } from '../../../lib/redis'
 import { j, privateProcedure } from '../../jstack'
 import { create_read_website_content } from './read-website-content'
-import { parseAttachments, PromptBuilder } from './utils'
+import { parseAttachments } from './utils'
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { getAccount } from '../utils/get-account'
@@ -220,38 +221,34 @@ export const chatRouter = j.router({
 
       const { links, attachments } = parsedAttachments
 
-      const content = new PromptBuilder()
+      const content = new XmlPrompt()
       const userContent = message.parts.reduce(
         (acc, curr) => (curr.type === 'text' ? acc + curr.text : ''),
         '',
       )
 
-      content.add(`<user_message>${userContent}</user_message>`)
+      content.open('message', { date: format(new Date(), 'yyyy-MM-dd') })
+
+      content.tag('user_message', userContent)
 
       if (Boolean(links.length)) {
-        const link = new PromptBuilder()
-        links.forEach((l) => link.add(`<link>${l?.link}</link>`))
-
-        content.add(
-          `<attached_links note="Please read these.">${link.build()}</attached_links>`,
-        )
+        content.open('attached_links', { note: 'please read these links.' })
+        links.filter(Boolean).forEach((l) => content.tag('link', l.link))
+        content.close('attached_links')
       }
 
-      if (Boolean(message.metadata?.editorContent)) {
-        content.add(`<tweet_draft>${message.metadata?.editorContent}</tweet_draft>`)
+      if (message.metadata?.editorContent) {
+        content.tag('tweet_draft', message.metadata.editorContent)
       }
+
+      content.close('message')
 
       const userMessage: MyUIMessage = {
         ...message,
-        parts: [
-          { type: 'text', text: `<message>${content.build()}</message>` },
-          ...attachments,
-        ],
+        parts: [{ type: 'text', text: content.toString() }, ...attachments],
       }
 
       const messages = [...(history ?? []), userMessage] as MyUIMessage[]
-
-      console.log(JSON.stringify(messages, null, 2))
 
       const stream = createUIMessageStream<MyUIMessage>({
         originalMessages: messages,
