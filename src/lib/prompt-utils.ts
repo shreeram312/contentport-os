@@ -1,6 +1,6 @@
 import { Style } from '@/server/routers/style-router'
-import { generateText } from 'ai'
 import { nanoid } from 'nanoid'
+import { XmlPrompt } from './xml-prompt'
 
 export const assistantPrompt = ({
   editorContent,
@@ -392,95 +392,4 @@ export interface StyleAnalysis {
   second_third: string
   third_third: string
   [key: string]: string
-}
-
-import { XmlPrompt } from '@/server/routers/chat/tools/create-tweet-tool'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
-
-const model = openrouter.chat('anthropic/claude-3.7-sonnet', {
-  reasoning: { effort: 'low' },
-  models: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro'],
-})
-
-export async function analyzeUserStyle(tweets: any[]): Promise<StyleAnalysis> {
-  const systemPrompt = `You are an expert at analyzing writing styles from social media posts. Analyze the given tweets and provide a concise summary of the writing style, tone, voice, common themes, and characteristic patterns. Include examples where it makes sense. Focus on what makes this person's writing unique and distinctive. Keep your analysis under 200 words and do it in 5-10 bullet points. Write it as instructions for someone else to write, e.g. NOT ("this user writes...", but "write like...").\n\nAlso, please keep your analysis in simple, easy language at 6-th grade reading level. no fancy words like "utilize this" or "leverage that". \n\nThe goal is that with your analysis, another LLM will be able to replicate the exact style. So picture the style as clearly as possible.\n  \nEXAMPLE: \n- write in lowercase only, avoiding capitalization on personal pronouns and sentence starts. Example: "i'm not using the next.js app router navigation for @contentport anymore, the results are kinda amazing"\n- separate ideas with double line breaks for clarity and emphasis. Example: "a few days ago i posted about moving away from next.js navigation 👀\n◆ pages load instantly now"\n\n- use simple punctuation: periods to end statements and emojis to add tone. avoid commas.\n- use bulleted lists using the symbol ◆ to break down key points concisely. Example: "◆ pages load instantly now ◆ whole app feels way faster"\n- make use of sentence fragments and brief statements to create a punchy, direct style. Example: "dear @neondatabase, you're so easy to set up and have a great free tier"\n- occasionally use casual, conversational vocabulary including slang and mild profanity to convey authenticity and enthusiasm. Example: "man i just fucking love aws s3"\n- use rhetorical questions to engage readers. Example: "why didn't anyone tell me that talking to users is actually fun"\n- use a friendly, informal tone with a mix of humor and straightforwardness, often expressing excitement or frustration openly.\n- use emojis sparingly but purposefully to highlight emotion or humor (e.g., 🎉 for celebration, 👀 for attention, 🤡 for self-deprecation). Not every post contains emojis, but when used, they reinforce tone.\n- keep sentence structures mostly simple with occasional casual connectors like "but," "so," or "and" leading thoughts without formal conjunctions.`
-
-  const formatTweetAnalysis = (tweets: any[]) => {
-    return tweets.map((tweet, index) => `${index + 1}. ${tweet.text}`).join('\n\n')
-  }
-
-  const thirdSize = Math.ceil(tweets.length / 3)
-  const firstThird = tweets.slice(0, thirdSize)
-  const secondThird = tweets.slice(thirdSize, thirdSize * 2)
-  const thirdThird = tweets.slice(thirdSize * 2)
-
-  const [overallAnalysis, firstThirdAnalysis, secondThirdAnalysis, thirdThirdAnalysis] =
-    await Promise.all([
-      generateText({
-        model,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `Analyze the overall writing style from these tweets:\n\n${formatTweetAnalysis(tweets)}`,
-          },
-        ],
-      }),
-      generateText({
-        model,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `Analyze the writing style from these tweets:\n\n${formatTweetAnalysis(firstThird)}`,
-          },
-        ],
-      }),
-      generateText({
-        model,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `Analyze the writing style from these tweets:\n\n${formatTweetAnalysis(secondThird)}`,
-          },
-        ],
-      }),
-      generateText({
-        model,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `Analyze the writing style from these tweets:\n\n${formatTweetAnalysis(thirdThird)}`,
-          },
-        ],
-      }),
-    ])
-
-  return {
-    overall: overallAnalysis.text,
-    first_third: firstThirdAnalysis.text,
-    second_third: secondThirdAnalysis.text,
-    third_third: thirdThirdAnalysis.text,
-  }
 }

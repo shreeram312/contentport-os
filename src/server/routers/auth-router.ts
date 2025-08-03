@@ -1,7 +1,6 @@
 import { DEFAULT_TWEETS } from '@/constants/default-tweet-preset'
 import { db } from '@/db'
 import { account, knowledgeDocument, user, user as userSchema } from '@/db/schema'
-import { analyzeUserStyle } from '@/lib/prompt-utils'
 import { redis } from '@/lib/redis'
 import { and, eq } from 'drizzle-orm'
 import { HTTPException } from 'hono/http-exception'
@@ -33,18 +32,18 @@ type AuthAction = 'onboarding' | 'invite' | 'add-account'
 const clientV2 = new TwitterApi(process.env.TWITTER_BEARER_TOKEN!).readOnly
 
 export const authRouter = j.router({
-
   updateOnboardingMetaData: privateProcedure
-  .input(z.object({userGoals: z.array(z.string()), userFrequency: z.number()}))
-  .post(async ({c, input, ctx}) => {
-    await db.update(user).set(
-      {
-        goals: input.userGoals,
-        frequency: input.userFrequency
-      }
-    ).where(eq(user.id, ctx.user.id))
-    return c.json({success: true})
-  }),
+    .input(z.object({ userGoals: z.array(z.string()), userFrequency: z.number() }))
+    .post(async ({ c, input, ctx }) => {
+      await db
+        .update(user)
+        .set({
+          goals: input.userGoals,
+          frequency: input.userFrequency,
+        })
+        .where(eq(user.id, ctx.user.id))
+      return c.json({ success: true })
+    }),
 
   createTwitterLink: privateProcedure
     .input(z.object({ action: z.enum(['onboarding', 'add-account']) }))
@@ -295,11 +294,6 @@ export const authRouter = j.router({
         tweets: formattedTweets.reverse(),
         prompt: '',
       })
-      const styleAnalysis = await analyzeUserStyle(formattedTweets)
-
-      // NEW
-      const draftStyleKey = `draft-style:${dbAccountId}`
-      await redis.json.set(draftStyleKey, '$', styleAnalysis)
     }
 
     const hasExistingExamples = await db.query.knowledgeDocument.findFirst({
