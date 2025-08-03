@@ -117,31 +117,6 @@ export type MyUIMessage = UIMessage<
     }
   }
 >
-
-// ==================== Constants ====================
-
-const MESSAGE_ID_PREFIXES = {
-  document: 'doc:',
-  meta: 'meta:',
-  style: 'style:',
-  system: 'system-prompt',
-}
-
-function filterVisibleMessages(messages: UIMessage[]): UIMessage[] {
-  return messages.filter(
-    (msg) =>
-      !msg.id.startsWith(MESSAGE_ID_PREFIXES.document) &&
-      !msg.id.startsWith(MESSAGE_ID_PREFIXES.meta) &&
-      !msg.id.startsWith(MESSAGE_ID_PREFIXES.system),
-  )
-}
-
-async function incrementChatCount(userEmail: string): Promise<void> {
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const key = `chat:count:batch-2:${userEmail}`
-  await redis.hincrby(key, today, 1)
-}
-
 // ==================== Route Handlers ====================
 
 export const chatRouter = j.router({
@@ -227,7 +202,7 @@ export const chatRouter = j.router({
         '',
       )
 
-      content.open('message', { date: format(new Date(), 'yyyy-MM-dd') })
+      content.open('message', { date: format(new Date(), 'EEEE, yyyy-MM-dd') })
 
       content.tag('user_message', userContent)
 

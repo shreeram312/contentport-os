@@ -115,7 +115,7 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
 
       const prompt = new XmlPrompt()
 
-      prompt.open('prompt', { date: format(new Date(), 'yyyy-MM-dd') })
+      prompt.open('prompt', { date: format(new Date(), 'EEEE, yyyy-MM-dd') })
 
       // system
       prompt.open('system')
