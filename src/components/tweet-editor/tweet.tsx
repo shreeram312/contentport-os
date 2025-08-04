@@ -1196,7 +1196,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                       <input
                         id="media-upload"
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/x-msvideo"
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
                         multiple
                         className="hidden"
                         onChange={(e) => {
