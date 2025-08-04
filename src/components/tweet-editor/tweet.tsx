@@ -659,6 +659,26 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
     }
   }
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    const files: File[] = []
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (!item) continue
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) files.push(file)
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault()
+      await handleFiles(files)
+    }
+  }
+
   const removeMediaFile = (url: string) => {
     // Get and abort the single controller
     const controller = abortControllersRef.current.get(url)
@@ -1015,6 +1035,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                     contentEditable={
                       <ContentEditable
                         spellCheck={false}
+                        onPaste={handlePaste}
                         className={cn(
                           'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none',
                         )}
