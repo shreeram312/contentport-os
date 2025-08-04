@@ -235,10 +235,6 @@ export const createStylePrompt = ({
 }) => {
   const prompt = new XmlPrompt()
 
-  prompt.open('style_context')
-  prompt.text(editToolSystemPrompt({ name: account.name }))
-  prompt.close('style_context')
-
   prompt.tag(
     'user',
     `You are tweeting as user "${account?.name}" (@${account?.username}).`,

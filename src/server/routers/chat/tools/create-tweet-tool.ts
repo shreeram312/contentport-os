@@ -123,34 +123,34 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
       prompt.close('system')
 
       // history
-      if (ctx.messages.length > 1) {
-        prompt.open('history')
-        ctx.messages.forEach((msg) => {
-          prompt.open('response_pair')
-          msg.parts.forEach((part) => {
-            if (part.type === 'text' && msg.role === 'user') {
-              prompt.open('user_message')
-              prompt.tag('user_request', part.text)
+      prompt.open('history')
 
-              if (Boolean(websiteContent.length)) {
-                websiteContent.forEach(({ url, title, content }) => {
-                  if (content && title) {
-                    prompt.tag('attached_website_content', content, { url, title })
-                  }
-                })
-              }
+      ctx.messages.forEach((msg) => {
+        prompt.open('response_pair')
+        msg.parts.forEach((part) => {
+          if (part.type === 'text' && msg.role === 'user') {
+            prompt.open('user_message')
+            prompt.tag('user_request', part.text)
 
-              prompt.close('user_message')
+            if (Boolean(websiteContent.length)) {
+              websiteContent.forEach(({ url, title, content }) => {
+                if (content && title) {
+                  prompt.tag('attached_website_content', content, { url, title })
+                }
+              })
             }
 
-            if (part.type === 'data-tool-output') {
-              prompt.tag('response_tweet', part.data.text)
-            }
-          })
-          prompt.close('response_pair')
+            prompt.close('user_message')
+          }
+
+          if (part.type === 'data-tool-output') {
+            prompt.tag('response_tweet', part.data.text)
+          }
         })
-        prompt.close('history')
-      }
+        prompt.close('response_pair')
+      })
+
+      prompt.close('history')
 
       // current job
       prompt.tag('current_user_request', instruction ?? ctx.userContent)
@@ -235,5 +235,3 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
     },
   })
 }
-
-
