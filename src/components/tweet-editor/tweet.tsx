@@ -98,7 +98,6 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false)
   const [skipPostConfirmation, setSkipPostConfirmation] = useState(false)
   const [didTogglePostConfirmation, setDidTogglePostConfirmation] = useState(false)
-  console.log('didTogglePostConfirmation', didTogglePostConfirmation)
 
   useEffect(() => {
     setSkipPostConfirmation(localStorage.getItem('skipPostConfirmation') === 'true')
@@ -399,9 +398,8 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       })
 
       fire({
-        particleCount: 100,
-        spread: 110,
-        origin: { y: 0.6 },
+        particleCount: 200,
+        spread: 160,
       })
 
       setMediaFiles([])
@@ -763,6 +761,11 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
           </Link>
         </div>,
       )
+
+      fire({
+        particleCount: 200,
+        spread: 160,
+      })
     },
   })
 
@@ -856,7 +859,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
       return
     }
 
-    if (localStorage.getItem('skipPostConfirmation') === 'true') {
+    if (skipPostConfirmation) {
       performPostTweet()
     } else {
       setShowPostConfirmModal(true)
@@ -1310,7 +1313,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>
-                                {localStorage.getItem('skipPostConfirmation') === 'true'
+                                {skipPostConfirmation
                                   ? 'The tweet will be posted immediately'
                                   : 'A confirmation modal will open'}
                               </p>

@@ -108,10 +108,9 @@ export default function TweetQueue() {
         accountName: data.accountName,
       })
 
-      fire({
-        particleCount: 100,
-        spread: 110,
-        origin: { y: 0.6 },
+      fire({ 
+        particleCount: 200, 
+        spread: 160
       })
     },
     onError: (error) => {

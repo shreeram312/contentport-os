@@ -1,5 +1,6 @@
 'use client'
 
+import { ConfettiProvider } from '@/hooks/use-confetti'
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HTTPException } from 'hono/http-exception'
 import { ReactNode, useState } from 'react'
