@@ -91,6 +91,12 @@ export type Metadata = {
   editorContent: string
 }
 
+export interface ChatHistoryItem {
+  id: string
+  title: string
+  lastUpdated: string
+}
+
 export type MyUIMessage = UIMessage<
   Metadata,
   {
@@ -145,8 +151,15 @@ export const chatRouter = j.router({
       return c.superjson({ messages })
     }),
 
-  conversation: privateProcedure.post(({ c }) => {
-    return c.json({ id: crypto.randomUUID() })
+  history: privateProcedure.query(async ({ c, ctx }) => {
+    const { user } = ctx
+
+    const historyKey = `chat:history-list:${user.email}`
+    const chatHistory = (await redis.get<ChatHistoryItem[]>(historyKey)) || []
+
+    return c.superjson({
+      chatHistory: chatHistory.slice(0, 20),
+    })
   }),
 
   chat: privateProcedure
@@ -233,6 +246,24 @@ export const chatRouter = j.router({
         }),
         onFinish: async ({ messages }) => {
           await redis.set(`chat:history:${id}`, messages)
+
+          const historyKey = `chat:history-list:${user.email}`
+          const existingHistory = (await redis.get<ChatHistoryItem[]>(historyKey)) || []
+
+          const title = messages[0]?.metadata?.userMessage ?? 'Unnamed chat'
+
+          const chatHistoryItem: ChatHistoryItem = {
+            id,
+            title,
+            lastUpdated: new Date().toISOString(),
+          }
+
+          const updatedHistory = [
+            chatHistoryItem,
+            ...existingHistory.filter((item) => item.id !== id),
+          ]
+
+          await redis.set(historyKey, updatedHistory)
         },
         onError(error) {
           console.log('❌❌❌ ERROR:', JSON.stringify(error, null, 2))
