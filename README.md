@@ -3,14 +3,13 @@
 ### public roadmap
 
 urgent & often requested:
-- fix bug where file input doesnt show videos
+- allow pasting image in tweet editor
 - fix bug where scheduling doesn't work when editing from queue
 - implement chat history
 - support creating threads
 - showing OG images when pasting URLs
 - becoming responsive
 - make it much easier to upgrade to PRO & improved upgrading UX
-- add back confetti
 
 nice to have
 - use posted tweets as style reference/context for assistant
