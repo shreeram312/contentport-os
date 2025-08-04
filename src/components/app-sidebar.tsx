@@ -312,15 +312,11 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     [addChatAttachment],
   )
 
-  const queryClient = useQueryClient()
   const { setId } = useChatContext()
 
   const handleChatSelect = async (chatId: string) => {
     setIsHistoryOpen(false)
     setId(chatId)
-    // updateURL('chatId', chatId)
-
-    // queryClient.invalidateQueries({ queryKey: ['initial-messages'] })
   }
 
   const { data: knowledgeData } = useQuery({

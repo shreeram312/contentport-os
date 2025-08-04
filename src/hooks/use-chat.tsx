@@ -43,7 +43,7 @@ export const ChatProvider = ({ children }: PropsWithChildren) => {
     },
   })
 
-  const { data } = useQuery({
+  useQuery({
     queryKey: ['initial-messages', id],
     queryFn: async () => {
       const res = await client.chat.get_message_history.$get({ chatId: id })
