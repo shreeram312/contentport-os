@@ -108,7 +108,7 @@ const Page = async () => {
                         </div>
                         <p className="text-base text-gray-600">
                           Trusted by{' '}
-                          <span className="font-medium text-gray-900">860</span> founders
+                          <span className="font-medium text-gray-900">1.140</span> founders
                         </p>
                       </div>
                     </div>
