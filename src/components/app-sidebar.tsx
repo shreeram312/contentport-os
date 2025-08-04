@@ -1,7 +1,7 @@
 'use client'
 
-import { ArrowUp, Paperclip, Plus, Square, X } from 'lucide-react'
-import { useCallback, useContext, useEffect } from 'react'
+import { ArrowUp, History, Paperclip, Plus, RotateCcw, Square, X } from 'lucide-react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 
 import {
   Sidebar,
@@ -23,7 +23,8 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import { motion } from 'framer-motion'
 import {
   $createParagraphNode,
@@ -39,6 +40,14 @@ import { KnowledgeSelector, SelectedKnowledgeDocument } from './knowledge-select
 import DuolingoButton from './ui/duolingo-button'
 import { FileUpload, FileUploadContext, FileUploadTrigger } from './ui/file-upload'
 import { PromptSuggestion } from './ui/prompt-suggestion'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
 
 const ChatInput = ({
   onSubmit,
@@ -245,6 +254,16 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [editor] = useLexicalComposerContext()
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+
+  const { data: chatHistoryData, isPending: isHistoryPending } = useQuery({
+    queryKey: ['chat-history', isHistoryOpen],
+    queryFn: async () => {
+      const res = await client.chat.history.$get()
+      return await res.json()
+    },
+    enabled: isHistoryOpen,
+  })
 
   const { messages, status, sendMessage, startNewChat, id, stop } = useChatContext()
   const { attachments, removeAttachment, addChatAttachment, addKnowledgeAttachment } =
@@ -271,7 +290,6 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
       sendMessage({ text, metadata: { attachments, editorContent, userMessage: text } })
 
-      // Batch attachment removals to prevent multiple rapid state updates
       if (attachments.length > 0) {
         requestAnimationFrame(() => {
           attachments.forEach((a) => {
@@ -294,6 +312,17 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     [addChatAttachment],
   )
 
+  const queryClient = useQueryClient()
+  const { setId } = useChatContext()
+
+  const handleChatSelect = async (chatId: string) => {
+    setIsHistoryOpen(false)
+    setId(chatId)
+    // updateURL('chatId', chatId)
+
+    // queryClient.invalidateQueries({ queryKey: ['initial-messages'] })
+  }
+
   const { data: knowledgeData } = useQuery({
     queryKey: ['knowledge-documents'],
     queryFn: async () => {
@@ -315,25 +344,56 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
           <div className="w-full flex items-center justify-between">
             <p className="text-sm/6 font-medium">Assistant</p>
             <div className="flex gap-2">
-              <DuolingoButton
-                onClick={handleNewChat}
-                size="sm"
-                variant="secondary"
-                title="New Chat"
-                className="inline-flex items-center gap-1.5"
-              >
-                <Plus className="size-4" />
-                <p className="text-sm">New Chat</p>
-              </DuolingoButton>
-              <DuolingoButton
-                onClick={toggleSidebar}
-                variant="secondary"
-                className="aspect-square"
-                size="icon"
-                title="Close Sidebar"
-              >
-                <X className="size-4" />
-              </DuolingoButton>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DuolingoButton
+                      onClick={handleNewChat}
+                      size="sm"
+                      variant="secondary"
+                      className="inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="size-4" />
+                      <p className="text-sm">New Chat</p>
+                    </DuolingoButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Start a new conversation</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DuolingoButton
+                      onClick={() => setIsHistoryOpen(true)}
+                      size="icon"
+                      variant="secondary"
+                      className="aspect-square"
+                    >
+                      <History className="size-4" />
+                    </DuolingoButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Open chat history</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DuolingoButton
+                      onClick={toggleSidebar}
+                      variant="secondary"
+                      className="aspect-square"
+                      size="icon"
+                    >
+                      <X className="size-4" />
+                    </DuolingoButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Close sidebar</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </SidebarHeader>
@@ -466,6 +526,60 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
+
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-2xl max-h-[80vh] overflow-hidden">
+          <div className="size-12 bg-gray-100 rounded-full flex items-center justify-center">
+            <History className="size-6" />
+          </div>
+          <DialogHeader className="py-2">
+            <DialogTitle className="text-lg font-semibold leading-6">
+              Chat History
+            </DialogTitle>
+            <DialogDescription className="leading-none">
+              {isHistoryPending
+                ? 'Loading...'
+                : chatHistoryData?.chatHistory?.length
+                  ? `Showing ${chatHistoryData?.chatHistory?.length} most recent chats`
+                  : 'No chat history yet'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {
+            <div className="overflow-y-auto max-h-[60vh] -mx-2 px-2">
+              <div className="space-y-2">
+                {chatHistoryData?.chatHistory?.length ? (
+                  chatHistoryData.chatHistory.map((chat) => (
+                    <button
+                      key={chat.id}
+                      onClick={() => handleChatSelect(chat.id)}
+                      className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm text-gray-900 truncate">
+                            {chat.title}
+                          </h3>
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
+                          {formatDistanceToNow(new Date(chat.lastUpdated), {
+                            addSuffix: true,
+                          })}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No chat history yet</p>
+                    <p className="text-xs mt-1">Start a conversation to see it here</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          }
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
