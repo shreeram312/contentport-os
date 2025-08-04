@@ -1026,6 +1026,7 @@ export default function Tweet({ editMode = false, editTweetId }: TweetProps) {
                     contentEditable={
                       <ContentEditable
                         spellCheck={false}
+                        onPaste={handlePaste}
                         className={cn(
                           'w-full !min-h-16 resize-none text-base/7 leading-relaxed text-stone-800 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none',
                         )}
