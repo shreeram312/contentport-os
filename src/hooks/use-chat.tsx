@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { DefaultChatTransport } from 'ai'
 import { nanoid } from 'nanoid'
 import { Options, useQueryState } from 'nuqs'
-import { createContext, PropsWithChildren, useContext, useEffect, useRef } from 'react'
+import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useRef } from 'react'
 import toast from 'react-hot-toast'
 
 interface ChatContext extends ReturnType<typeof useChat<MyUIMessage>> {
@@ -43,21 +43,29 @@ export const ChatProvider = ({ children }: PropsWithChildren) => {
     },
   })
 
-  useQuery({
+  const { data } = useQuery({
     queryKey: ['initial-messages', id],
     queryFn: async () => {
       const res = await client.chat.get_message_history.$get({ chatId: id })
       const data = await res.json()
-
-      chat.setMessages(data.messages)
 
       return data
     },
     initialData: { messages: [] },
   })
 
+  useEffect(() => {
+    chat.setMessages(data.messages)
+  }, [data])
+
+  const contextValue = useMemo(() => ({ 
+    ...chat, 
+    startNewChat, 
+    setId 
+  }), [chat, startNewChat, setId])
+
   return (
-    <ChatContext.Provider value={{ ...chat, startNewChat, setId }}>
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   )

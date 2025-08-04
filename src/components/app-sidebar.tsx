@@ -266,18 +266,18 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   })
 
   const { messages, status, sendMessage, startNewChat, id, stop } = useChatContext()
-  const { attachments, removeAttachment, addChatAttachment, addKnowledgeAttachment } =
+  const { attachments, removeAttachment, addChatAttachment } =
     useAttachments()
 
   const updateURL = useCallback(
     (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams)
+      const params = new URLSearchParams(window.location.search)
       params.set(key, value)
       router.replace(`${window.location.pathname}?${params.toString()}`, {
         scroll: false,
       })
     },
-    [searchParams, router],
+    [router],
   )
 
   const handleSubmit = useCallback(
