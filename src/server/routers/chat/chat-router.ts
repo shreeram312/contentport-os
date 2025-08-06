@@ -193,7 +193,7 @@ export const chatRouter = j.router({
         if (!success) {
           if (user.plan === 'pro') {
             throw new HTTPException(429, {
-              message: "You've been rate-limited, please try again soon.",
+              message: `You've reached your hourly message limit. Please try again in a few hours.`,
             })
           } else {
             throw new HTTPException(429, {
