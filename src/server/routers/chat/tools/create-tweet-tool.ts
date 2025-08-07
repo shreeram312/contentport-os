@@ -183,10 +183,7 @@ export const createTweetTool = ({ writer, ctx }: Context) => {
         },
       ]
 
-      const modelName =
-        ctx.plan === 'pro' ? 'anthropic/claude-sonnet-4' : 'openrouter/horizon-beta'
-
-      const model = openrouter.chat(modelName, {
+      const model = openrouter.chat("anthropic/claude-sonnet-4", {
         reasoning: { enabled: false, effort: 'low' },
         models: [
           'openrouter/horizon-alpha',

@@ -293,11 +293,8 @@ export const chatRouter = j.router({
 
           const readWebsiteContent = create_read_website_content({ chatId: id })
 
-          const modelName =
-            user.plan === 'pro' ? 'openai/gpt-4.1' : 'openrouter/horizon-beta'
-
           const result = streamText({
-            model: openrouter.chat(modelName, {
+            model: openrouter.chat('openai/gpt-4.1', {
               models: ['openai/gpt-4o'],
               reasoning: { enabled: false, effort: 'low' },
             }),
