@@ -56,6 +56,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      redirectURI: 'https://contentport.io/api/auth/callback/google',
     },
     twitter: {
       clientId: process.env.TWITTER_CLIENT_ID as string,
