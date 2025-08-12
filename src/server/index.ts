@@ -14,29 +14,15 @@ const api = j
   .use(
     cors({
       origin: (origin, c) => {
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'https://contentport.io',
-          'https://www.contentport.io',
-          'https://contentport.vercel.app',
-          'https://www.contentport.vercel.app',
-        ]
-
-        if (allowedOrigins.includes(origin)) {
-          return origin
-        }
-
-        if (origin && /^https:\/\/contentport-git-.*\.vercel\.app$/.test(origin)) {
-          return origin
-        }
-
-        if (origin && /^http:\/\/localhost:\d+$/.test(origin)) {
-          return origin
-        }
-
+        if (!origin) return null
+        
+        if (origin.includes('localhost')) return origin
+        if (origin.includes('vercel.app')) return origin
+        if (origin.includes('contentport.io')) return origin
+        
         return null
       },
-      allowHeaders: ['x-is-superjson', 'Content-Type', 'content-type'],
+      allowHeaders: ['x-is-superjson', 'Content-Type', 'content-type', 'authorization', 'x-requested-with'],
       exposeHeaders: ['x-is-superjson', 'Content-Type', 'content-type'],
       credentials: true,
     }),
