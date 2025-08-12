@@ -13,9 +13,17 @@ const api = j
   .basePath('/api')
   .use(
     cors({
-      origin: '*',
-      allowHeaders: ['x-is-superjson', 'Content-Type', 'content-type', 'authorization', 'x-requested-with'],
-      exposeHeaders: ['x-is-superjson', 'Content-Type', 'content-type'],
+      origin: (origin) => origin,
+      allowHeaders: [
+        'Content-Type',
+        'Authorization',
+        'x-is-superjson',
+        'content-type',
+        'authorization',
+        'x-requested-with',
+      ],
+      allowMethods: ['POST', 'GET', 'OPTIONS'],
+      exposeHeaders: ['x-is-superjson', 'Content-Type', 'content-type', 'Content-Length'],
       credentials: true,
     }),
   )
