@@ -15,7 +15,7 @@ const getTrustedOrigins = () => {
   const origins = new Set<string>()
   const add = (v?: string) => v && origins.add(v)
   const toOrigin = (host?: string) =>
-    host?.startsWith('http') ? host : host ? `https://${host}` : undefined
+    host?.startsWith('http') ? host : host ? `https://www.${host}` : undefined
 
   add(process.env.BETTER_AUTH_URL) // current deployment origin
   add(toOrigin(process.env.VERCEL_BRANCH_URL)) // preview branch URL (if any)
