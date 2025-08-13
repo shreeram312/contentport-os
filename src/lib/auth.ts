@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { PostHog } from 'posthog-node'
+import { oAuthProxy } from 'better-auth/plugins'
 
 const client = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   host: 'https://eu.i.posthog.com',
@@ -10,11 +11,27 @@ const client = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
 
 const database = drizzleAdapter(db, { provider: 'pg' })
 
+const getTrustedOrigins = () => {
+  const origins = new Set<string>()
+  const add = (v?: string) => v && origins.add(v)
+  const toOrigin = (host?: string) =>
+    host?.startsWith('http') ? host : host ? `https://${host}` : undefined
+
+  add(process.env.BETTER_AUTH_URL) // current deployment origin
+  add(toOrigin(process.env.VERCEL_BRANCH_URL)) // preview branch URL (if any)
+  add(toOrigin(process.env.VERCEL_URL)) // deployment URL
+  add('https://contentport.io') // prod
+  add('http://localhost:3000') // local dev
+  return Array.from(origins)
+}
+
 export const auth = betterAuth({
-  trustedOrigins: [
-    'http://localhost:3000',
-    'https://contentport.io',
-    'https://www.contentport.io',
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins: getTrustedOrigins(),
+  plugins: [
+    oAuthProxy({
+      productionURL: 'https://contentport.io',
+    }),
   ],
   databaseHooks: {
     user: {
@@ -70,6 +87,13 @@ export const auth = betterAuth({
         'follows.read',
         'media.write',
       ],
+    },
+  },
+  advanced: {
+    defaultCookieAttributes: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true,
     },
   },
   hooks: {
